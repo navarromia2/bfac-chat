@@ -11,9 +11,13 @@ Attacks by armed groups in 2021 threatened Burkina Faso's progress in child heal
 # Repository Content
 
 - `README.md`: This file with an explanation of this repository.
-- `1a. Pull SBP`: R code to pull the first SBP measure for each participant.
-- `1b. Pull Medication`: R code to pull medication usage from survey responses for each participant by year.
-- `2. Clean Covariates`: R code to clean model covaraites and merge to create final dataset for analysis.
+- analysis file 01A: Cleaning outcome (healthcare facility surveillance) and covariate data.
+- analysis file 01B: Cleaning exposure (violent event) data.
+- analysis file 02A: 1ry analysis of association between violence and incidence of monthly facility visits
+- analysis file 02B: 2ry analysis of association between violence and incidence of monthly facility visits by proximity to violence
+- analysis file 03A: Generate summary Figure 1 - temporal graph
+- analysis file 03B: Generate summary Figure 2 - spatiotemporal maps
+- analysis file 04:  Generate summary statistics table
 
 Note that no datasets will be made available on this repository due to data usage restrictions. The datasets analyzed during the current study are available upon reasonable request from the corresponding author.
 
