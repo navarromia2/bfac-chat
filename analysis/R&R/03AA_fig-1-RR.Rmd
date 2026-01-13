@@ -1,0 +1,84 @@
+---
+title: "03_Figure 1 (R&R)"
+output: html_document
+date: "2024-05-18"
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("0-config.R"))
+
+#temp data from 01B
+date_data <- "2025-08-06"
+
+df_all <- read_csv(paste0(final_data_path,"df_all_",date_data,".csv"))
+df_mal <- read_csv(paste0(final_data_path,"df_mal_",date_data,".csv"))
+df_pne <- read_csv(paste0(final_data_path,"df_pne_",date_data,".csv"))
+df_dia <- read_csv(paste0(final_data_path,"df_dia_",date_data,".csv"))
+
+head(df_all)
+
+```
+
+### Figure 1. Temporal trends in exposure + outcome
+```{r make-plot-items, warning=F, message=F}
+
+line_tot <- create_jitter_ggplot_RR(df_all, "A. Overall", xlab2 = "",
+                                 ymaxval2=50) 
+line_mal <- create_jitter_ggplot_RR(df_mal, "B. Malaria", xlab2 = "", ylab2 = "",
+                                 ymaxval2=25)
+line_pne <- create_jitter_ggplot_RR(df_pne, "C. Pneumonia",
+                                 ymaxval2=15)
+line_dia <- create_jitter_ggplot_RR(df_dia, "D. Diarrhea", ylab2 = "",
+                                 ymaxval2=5)
+
+
+line_tot
+
+```
+
+```{r quickplots, warning=F, message=F}
+
+plot(line_tot)
+plot(line_mal)
+plot(line_pne)
+plot(line_dia)
+
+```
+
+```{r cowplot, warning=F, message=F}
+
+cowplot::plot_grid( line_tot + theme(legend.position="none"),
+                    line_mal + theme(legend.position="none"),
+                    line_pne + theme(legend.position="none"),
+                    line_dia + theme(legend.position="none"),
+                    align = 'vh',
+                    nrow = 2)
+
+```
+
+```{r gridarrange, warning=F, message=F}
+
+fig_1 <- grid_arrange_shared_legend(line_tot, line_mal, line_pne, line_dia)
+fig_1
+
+```
+
+```{r save}
+
+ggsave(paste0(figure_path,"fig_1_RR_",Sys.Date(),".png"), 
+       plot = fig_1, 
+       width = 10,
+       height = 10,
+       units = "in")
+
+```
+

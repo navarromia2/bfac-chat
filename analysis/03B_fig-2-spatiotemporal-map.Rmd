@@ -1,0 +1,150 @@
+---
+title: "03_Figure 2"
+output: html_document
+date: "2024-09-23"
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("0-config.R"))
+
+df_violence <- read_rds(paste0(temp_data_path,"df_violence.rds"))
+
+csps_gps <- read_csv(paste0(temp_data_path,"csps_gps.csv"))
+
+#temp data from 01B
+date_data <- "2024-09-26"
+
+df_all <- read_rds(paste0(final_data_path,"df_all_",date_data,".rds"))
+
+```
+
+
+### Prepare data. Summary tables for plotting.
+```{r}
+
+df_violence %>%
+  filter(year!=2023) %>%
+  group_by(year) %>%
+  summarise(n_events=n())
+
+df_total <- 
+  df_all %>%
+  group_by(csps) %>%
+  summarise(n_visit=sum(n_visit, na.rm=T)) %>%
+  left_join(csps_gps)
+
+df_by_year <-
+  df_all %>%
+  group_by(csps, visit_year) %>%
+  mutate(visit_year = as.factor(visit_year)) %>%
+  summarise(n_visit=sum(n_visit, na.rm=T)) %>%
+  left_join(csps_gps)
+
+```
+
+
+### Make Shapefiles.
+```{r}
+
+#BFA base layer
+bfa_shape <- st_read(bfa_shp_path) %>% dplyr::filter(ADM2_FR=="Kossi")
+
+#Violent event points (2020-2022)
+viol_pts = 
+  df_violence %>% 
+  mutate(year_fac = as.factor(year)) |> 
+  st_as_sf(coords = c("longitude", "latitude"), crs = "EPSG:4326")
+
+#Violent event points (by year)
+viol_pts_2020 = 
+  df_violence %>% 
+  mutate(year_fac = as.factor(year)) %>% 
+  filter(year==2020) |> 
+  st_as_sf(coords = c("longitude", "latitude"), crs = "EPSG:4326")
+
+viol_pts_2021 = df_violence %>% 
+  mutate(year_fac = as.factor(year)) %>% 
+  filter(year==2021) |> 
+  st_as_sf(coords = c("longitude", "latitude"), crs = "EPSG:4326")
+
+viol_pts_2022 = df_violence %>% 
+  mutate(year_fac = as.factor(year)) %>% 
+  filter(year==2022) |> 
+  st_as_sf(coords = c("longitude", "latitude"), crs = "EPSG:4326")
+
+#CSPS visits per 1000 points (2020-2022)
+csps_pts <- 
+  df_total |>
+  st_as_sf(coords = c("csps_lon", "csps_lat"), crs = "EPSG:4326")
+
+#CSPS visits per 1000 points (by year)
+csps_pts_2020 <- 
+  df_by_year %>% 
+  filter(visit_year==2020) |>
+  st_as_sf(coords = c("csps_lon", "csps_lat"), crs = "EPSG:4326")
+
+csps_pts_2021 <- 
+  df_by_year %>% 
+  filter(visit_year==2021) |>
+  st_as_sf(coords = c("csps_lon", "csps_lat"), crs = "EPSG:4326")
+
+csps_pts_2022 <- 
+  df_by_year %>% 
+  filter(visit_year==2022) |>
+  st_as_sf(coords = c("csps_lon", "csps_lat"), crs = "EPSG:4326")
+
+```
+
+### 3. Create maps.
+
+```{r}
+
+panellabels <- c("A","B","C","D")
+
+panellabels_long <- c("A. 2020-2022, n=153 events",
+                 "B. 2020, n=26 events",
+                 "C. 2021, n=42 events",
+                 "D. 2022, n=85 events")
+
+bfa_map <- create_ggplot_map(viol_pts, csps_pts) #, panellabels[1])
+bfa_map_2020 <- create_ggplot_map(viol_pts_2020, csps_pts_2020) #, panellabels[2])
+bfa_map_2021 <- create_ggplot_map(viol_pts_2021, csps_pts_2021) #, panellabels[3])
+bfa_map_2022 <- create_ggplot_map(viol_pts_2022, csps_pts_2022) #, panellabels[4])
+
+fig_2 <- grid_arrange_shared_legend(bfa_map, bfa_map_2020, bfa_map_2021, bfa_map_2022)
+
+fig_2_arranged <- ggarrange(bfa_map, #row 1
+                            #row 2
+                            ggarrange(bfa_map_2020, bfa_map_2021, bfa_map_2022, 
+                                      ncol = 3, labels = panellabels[2:4]),
+                            nrow=2, labels = panellabels[1])
+
+ggsave(paste0(figure_path,"fig_2a_",Sys.Date(),".png"), 
+       plot = bfa_map, 
+       width = 6,
+       height = 6,
+       units = "in")
+
+ggsave(paste0(figure_path,"fig_2_",Sys.Date(),".png"), 
+       plot = fig_2, 
+       width = 10,
+       height = 10,
+       units = "in")
+
+# ggsave(paste0(figure_path,"fig_2_v2_",Sys.Date(),".png"), 
+#        plot = fig_2_arranged, 
+#        width = 8,
+#        height = 8,
+#        units = "in")
+
+```
+

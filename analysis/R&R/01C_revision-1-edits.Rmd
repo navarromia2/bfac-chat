@@ -1,0 +1,187 @@
+---
+title: "01C_revision-1-edits"
+author: "Mia Navarro"
+date: "2025-08-06"
+output:
+  html_document: default
+  word_document: default
+---
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("0-config.R"))
+
+date_data <- "2024-09-26"
+df_all_v4 <- read_rds(paste0(final_data_path,"df_all_",date_data,".rds"))
+df_mal_v4 <- read_rds(paste0(final_data_path,"df_mal_",date_data,".rds"))
+df_pne_v4 <- read_rds(paste0(final_data_path,"df_pne_",date_data,".rds"))
+df_dia_v4 <- read_rds(paste0(final_data_path,"df_dia_",date_data,".rds"))
+
+rain_data <- read.csv(paste0(raw_data_path,"hdx_rainfall_data/bfa-rainfall-subnat-full.csv"),
+                      comment = "#")
+
+acled_data <- read_csv(paste0(raw_data_path,"ACLED_2020-02-01-2023-04-01-Burkina_Faso v2.csv"))
+
+
+```
+
+Revision 1 Edits:
+
+# Seasonality: 
+## Change from binary indicator of rainy season (May-Oct) to 1-month aggregate amount of rainfall in PRIOR month to account for lagged effects of rainfall on disease transmission. Potentially also show sensitivity analysis of CURRENT month.
+
+### Clean rain_data
+```{r clean-data}
+
+rain_data2 <- rain_data %>%
+  mutate(visit_date_lag = as.Date(date, format = "%Y-%m-%d"),
+         # visit_year_lag = year(visit_date_lag),
+         # visit_month_lag = month(visit_date_lag),
+         visit_date = visit_date_lag %m-% months(1) #,
+         # visit_year = year(visit_date),
+         # visit_month = month(visit_date) 
+  ) %>%
+  dplyr::filter(year(visit_date_lag) >= 2020, 
+                PCODE == "BF4603",
+                day(visit_date_lag) == 1) %>% 
+  dplyr::select(visit_date_lag, visit_date, r1h)
+
+# n_pixels: number of input pixels used to create aggregates (Kossi Province = 243)
+# r1h:      1-mo rolling aggregation [mm]
+
+rain_data2
+
+```
+
+
+# Wt exposure variable: 
+## Weight the events by duration to show heterogeneous impact levels. Argument here is that a longer-lasting event would cause more fear and more likely impact treatment seeking behaviors.
+
+### Clean violence data.
+```{r viol, warning=F, message=F}
+
+df_violence <- 
+  acled_data %>%
+  mutate(date = as.Date(event_date, format = "%d %B %Y")) %>%
+  mutate(month = month(date)) %>%
+  relocate(date, .after=event_date) %>%
+  relocate(month, .after=year) %>%
+  arrange(date) %>%
+  filter(admin2 %in% c("Kossi")) %>%
+  dplyr::select(c(year,month,longitude,latitude,disorder_type,event_type,fatalities))
+
+
+df_violence$id_event <- 1:nrow(df_violence)
+
+df_violence <-
+  df_violence %>%
+  relocate(id_event, .before=year)
+
+df_violence %>%
+  group_by(year, month) %>%
+  summarise(n=n())
+
+df_violence_1 <- df_violence
+
+```
+
+### Loop through CSPS. Append row to violence data for each CSPS with flags if within 20 km.
+```{r, warning=F, message=F}
+
+# continuous
+df_viol3_cont_2 <- df_viol2 %>% dplyr::select(c(1,2,7:51))
+
+colnames(df_viol3_cont_2)[3:47] <- csps_codes$csps
+
+df_viol4_cont_2 <- df_viol3_cont_2 %>%
+  pivot_longer(
+      cols = colnames(df_viol3_cont_2)[3:47],
+      names_to = "csps",
+      values_to = "dist") %>%
+  group_by(csps, date, id_event) %>%
+  summarise(near_csps = dist <= 20) %>%
+  left_join(df_violence_1[,c(1,6,8)], by = join_by("id_event" == "id_event"))
+
+df_viol4_cont_2
+
+df_viol5_cont_2 <- df_viol4_cont_2 %>%
+  group_by(csps, date) %>%
+  summarise(is_near_csps = sum(near_csps==T) > 0,
+            n_near_csps = sum(near_csps==T),
+            n_fat_near_csps = sum(fatalities[near_csps==T]),
+            any_PV = sum(disorder_type[near_csps==T] == "Political violence") > 0,
+            any_SD = sum(disorder_type[near_csps==T] == "Strategic developments") > 0,
+            any_D = sum(disorder_type[near_csps==T] == "Demonstrations") > 0
+            )
+
+df_viol5_cont_2
+
+```
+
+
+```{r export-data}
+
+df_all_v5 <- df_all_v4 %>%
+  left_join(rain_data2 %>% dplyr::select(c(1,3)), by=join_by(visit_date == visit_date_lag)) %>%
+  left_join(rain_data2 %>% dplyr::select(c(2,3)), by=join_by(visit_date == visit_date)) %>%
+  rename(r1h_lag = r1h.x,
+         r1h_now = r1h.y) %>%
+  mutate(csps = as.character(csps)) %>%
+  left_join(df_viol5_cont_2, by = c("csps"="csps", "visit_date"="date")) %>%
+  mutate(across(where(is.logical), as.numeric))
+
+df_mal_v5 <- df_mal_v4 %>%
+  left_join(rain_data2 %>% dplyr::select(c(1,3)), by=join_by(visit_date == visit_date_lag)) %>%
+  left_join(rain_data2 %>% dplyr::select(c(2,3)), by=join_by(visit_date == visit_date)) %>%
+  rename(r1h_lag = r1h.x,
+         r1h_now = r1h.y) %>%
+  mutate(csps = as.character(csps)) %>%
+  left_join(df_viol5_cont_2, by = c("csps"="csps", "visit_date"="date")) %>%
+  mutate(across(where(is.logical), as.numeric))
+
+df_pne_v5 <- df_pne_v4 %>%
+  left_join(rain_data2 %>% dplyr::select(c(1,3)), by=join_by(visit_date == visit_date_lag)) %>%
+  left_join(rain_data2 %>% dplyr::select(c(2,3)), by=join_by(visit_date == visit_date)) %>%
+  rename(r1h_lag = r1h.x,
+         r1h_now = r1h.y) %>%
+  mutate(csps = as.character(csps)) %>%
+  left_join(df_viol5_cont_2, by = c("csps"="csps", "visit_date"="date")) %>%
+  mutate(across(where(is.logical), as.numeric))
+
+df_dia_v5 <- df_dia_v4 %>%
+  left_join(rain_data2 %>% dplyr::select(c(1,3)), by=join_by(visit_date == visit_date_lag)) %>%
+  left_join(rain_data2 %>% dplyr::select(c(2,3)), by=join_by(visit_date == visit_date)) %>%
+  rename(r1h_lag = r1h.x,
+         r1h_now = r1h.y) %>%
+  mutate(csps = as.character(csps)) %>%
+  left_join(df_viol5_cont_2, by = c("csps"="csps", "visit_date"="date")) %>%
+  mutate(across(where(is.logical), as.numeric))
+
+df_all_v5 <- replaceNAs(df_all_v5)
+df_mal_v5 <- replaceNAs(df_mal_v5)
+df_pne_v5 <- replaceNAs(df_pne_v5)
+df_dia_v5 <- replaceNAs(df_dia_v5)
+
+write_csv(df_all_v5, paste0(final_data_path,"df_all_",Sys.Date(),".csv"))
+write_csv(df_mal_v5, paste0(final_data_path,"df_mal_",Sys.Date(),".csv"))
+write_csv(df_pne_v5, paste0(final_data_path,"df_pne_",Sys.Date(),".csv"))
+write_csv(df_dia_v5, paste0(final_data_path,"df_dia_",Sys.Date(),".csv"))
+
+write_rds(df_all_v5, paste0(final_data_path,"df_all_",Sys.Date(),".rds"))
+write_rds(df_mal_v5, paste0(final_data_path,"df_mal_",Sys.Date(),".rds"))
+write_rds(df_pne_v5, paste0(final_data_path,"df_pne_",Sys.Date(),".rds"))
+write_rds(df_dia_v5, paste0(final_data_path,"df_dia_",Sys.Date(),".rds"))
+
+```
+
+```{r}
+
+df_viol4_cont_2 %>%
+  group_by(disorder_type) %>%
+  summarise(avg_fat = sum(fatalities, na.rm=T))
+
+
+```
+
+

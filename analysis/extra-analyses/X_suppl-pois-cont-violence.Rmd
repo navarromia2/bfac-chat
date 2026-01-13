@@ -1,0 +1,72 @@
+---
+title: "X_suppl-pois-cont-violence"
+author: "Mia Navarro"
+date: "2024-09-26"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("0-config.R"))
+
+#temp data from 01B
+date_data <- "2024-09-26"
+
+df_all <- read_csv(paste0(final_data_path,"df_all_",date_data,".csv"))
+df_mal <- read_csv(paste0(final_data_path,"df_mal_",date_data,".csv"))
+df_pne <- read_csv(paste0(final_data_path,"df_pne_",date_data,".csv"))
+df_dia <- read_csv(paste0(final_data_path,"df_dia_",date_data,".csv"))
+
+head(df_all); head(df_mal); head(df_pne); head(df_dia)
+
+```
+
+### Poisson regression analysis w/ offset
+#### 2C. Suppl analysis: Does violence (as a continuous variable) have an effect on treatment seeking patterns?
+
+```{r reg-funcs, warning=F, message=F, include=F}
+
+df_all <- create_collinear_cov(df_all)
+df_mal <- create_collinear_cov(df_mal)
+df_pne <- create_collinear_cov(df_pne)
+df_dia <- create_collinear_cov(df_dia)
+
+```
+
+```{r reg-run, warning=F, message=F, include=F}
+
+m1_pois_cont <- glm(n_visit ~ grp_min_dist_to_viol + dryRamadan, offset = log(n_cens), family = poisson(link = "log"), data = df_all)
+m2_mal_pois_cont <- glm(n_visit ~ grp_min_dist_to_viol + dryRamadan, offset = log(n_cens), family = poisson(link = "log"), data = df_mal)
+m2_pne_pois_cont <- glm(n_visit ~ grp_min_dist_to_viol + dryRamadan, offset = log(n_cens), family = poisson(link = "log"), data = df_pne)
+m2_dia_pois_cont <- glm(n_visit ~ grp_min_dist_to_viol + dryRamadan, offset = log(n_cens), family = poisson(link = "log"), data = df_dia)
+
+## glimpse of results
+summary(m1_pois_cont) 
+exp(summary(m1_pois_cont)$coeff) #exponentiate to get Rate Ratios
+
+```
+
+### 2C. Consolidate to one table.
+```{r}
+
+fulltab_cont <- tab_model(m1_pois_cont,m2_mal_pois_cont,m2_pne_pois_cont,m2_dia_pois_cont,
+                         show.loglik=T,string.est = "IRR",string.ci = "95% CI",
+                         pred.labels = c("Intercept",
+                                         "Violence (10 km units)",
+                                         "Season: Dry, Ramadan: Yes",
+                                         "Season: Rainy, Ramadan: No"),
+                          dv.labels = c("Total Visits", "Malaria Visits", "Pneumonia Visits", "Diarrhea Visits"),
+                         file = paste0(table_path,"table-3-pois.doc"))
+
+fulltab_cont
+
+```

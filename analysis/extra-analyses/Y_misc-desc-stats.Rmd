@@ -1,0 +1,84 @@
+---
+title: "Misc. Descriptive Statistics"
+output: html_document
+date: "2024-05-18"
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("0-config.R"))
+
+#temp data from 01B
+date_data <- "2024-09-26"
+
+df_all <- read_csv(paste0(final_data_path,"df_all_",date_data,".csv"))
+df_mal <- read_csv(paste0(final_data_path,"df_mal_",date_data,".csv"))
+df_pne <- read_csv(paste0(final_data_path,"df_pne_",date_data,".csv"))
+df_dia <- read_csv(paste0(final_data_path,"df_dia_",date_data,".csv"))
+
+head(df_all)
+
+```
+
+
+```{r old-fig1-code}
+
+ 
+# grid.arrange(line_tot, line_mal, line_pne, line_dia, 
+#              nrow=2, ncol=2, common.legend = TRUE, legend="bottom")
+# 
+# line_tot + line_mal + plot_layout(guides = "collect") + theme(legend.position = "bottom")
+
+# grid.arrange(
+#   line_tot, line_mal, line_pne, line_dia,
+#   widths = c(2, 1, 1),
+#   layout_matrix = rbind(c(1, 2, 3),
+#                         c(1, 4, NA)))
+
+```
+
+
+### Other descriptive statistics
+```{r}
+
+tableone::CreateTableOne(data=df_all)
+
+n_distinct(passive)
+
+sum(df_mal$n_visit, na.rm=T)*100/188570
+sum(df_pne$n_visit, na.rm=T)*100/188570
+sum(df_dia$n_visit, na.rm=T)*100/188570
+
+tempdf6 <- passive %>% 
+  filter(csps %in% unique(df_all$csps)) %>%
+  distinct(interview__id, .keep_all = T) %>%
+  filter(year(starttime)<2023)
+
+tempdf6 %>% summarise(n=n(), n_ref = sum(refugee==1), pr_ref=sum(refugee==1)*100/188570)
+
+#Number of children (census)
+nrow(census %>% filter(!duplicated(childID)) %>% filter(ageInMonths<60) %>% filter(endtime %in% seq(as.Date("2020-02-01"), as.Date("2022-12-31"), by="days")))
+
+cens_included <- census %>% group_by(village) %>% filter(!duplicated(childID)) %>% filter(ageInMonths<60) %>% filter(endtime %in% seq(as.Date("2020-02-01"), as.Date("2022-12-31"), by="days"))
+
+cens_included
+
+census_by_vill <- census %>% group_by(village) %>% filter(!duplicated(childID)) %>% filter(ageInMonths<60) %>% filter(endtime %in% seq(as.Date("2020-02-01"), as.Date("2022-12-31"), by="days")) %>% summarise(n=n())
+
+census %>% group_by(village) %>% filter(!duplicated(childID)) %>% filter(ageInMonths<60) %>% filter(endtime %in% seq(as.Date("2020-02-01"), as.Date("2022-12-31"), by="days"))
+hist(census_by_vill$n)
+sum(census_by_vill$n)
+
+vill_codes_names
+
+df_all
+
+```

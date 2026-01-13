@@ -1,0 +1,128 @@
+---
+title: "02BB_tab-2-pois-local-violence"
+author: "Mia Navarro"
+date: "2025-08-06"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("0-config.R"))
+
+#temp data from 01B
+date_data <- "2025-08-06"
+
+df_all2 <- read_csv(paste0(final_data_path,"df_all_",date_data,".csv"))
+df_mal2 <- read_csv(paste0(final_data_path,"df_mal_",date_data,".csv"))
+df_pne2 <- read_csv(paste0(final_data_path,"df_pne_",date_data,".csv"))
+df_dia2 <- read_csv(paste0(final_data_path,"df_dia_",date_data,".csv"))
+
+head(df_all2); head(df_mal2); head(df_pne2); head(df_dia2)
+
+```
+
+### Poisson regression analysis w/ offset
+#### 2A. 2ry analysis: Does violence have a differential effect on treatment seeking patterns?
+
+```{r reg-run, warning=F, message=F, include=F}
+
+m1_pois_near2 <- create_pois_near_RR(df_all2)
+m2_mal_pois_near2 <- create_pois_near_RR(df_mal2)
+m2_pne_pois_near2 <- create_pois_near_RR(df_pne2)
+m2_dia_pois_near2 <- create_pois_near_RR(df_dia2)
+
+## glimpse of results
+summary(m1_pois_near2) 
+exp(summary(m1_pois_near2)$coeff) #exponentiate to get IRR
+
+```
+
+### 2B. Consolidate to one table. Download.
+```{r}
+
+table_2_RR <- create_table_2_RR(create_doc=T)
+table_2_html_RR <- create_table_2_RR(create_doc=F)
+
+table_2_RR; table_2_html_RR
+
+```
+
+
+### NEGATIVE BINOMIAL regression analysis w/ offset
+#### 2A. 2ry analysis: Does violence have a differential effect on treatment seeking patterns?
+
+```{r reg-run, warning=F, message=F, include=F}
+
+m1_nb_near2 <- create_nb_near_RR(df_all2)
+m2_mal_nb_near2 <- create_nb_near_RR(df_mal2)
+m2_pne_nb_near2 <- create_nb_near_RR(df_pne2)
+m2_dia_nb_near2 <- create_nb_near_RR(df_dia2)
+
+## glimpse of results
+summary(m1_nb_near2) 
+exp(summary(m1_nb_near2)$coeff) #exponentiate to get IRR
+
+```
+
+### 2B. Consolidate to one table. Download.
+```{r}
+
+table_2_nb_RR <- create_table_2_nb_RR(create_doc=T)
+table_2_nb_html_RR <- create_table_2_nb_RR(create_doc=F)
+
+table_2_nb_RR; table_2_nb_html_RR
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+### "What if we change the reference level to distant violence?"
+```{r eval=F, include=F}
+
+df_all_releveled2 <- df_all2
+df_all_releveled2$near_violence <- ordered(df_all_releveled2$near_violence, 
+                                          levels=c("Violence >20 km away", 
+                                                    "Violence <=20 km away",  
+                                                    "No violence"))
+
+m1_pois_near_3 <- create_pois_near(df_all_releveled2)
+
+exp(summary(m1_pois_near_3)$coeff)
+
+tab_model(m1_pois_near_3,
+          show.loglik=T,string.est = "IRR",string.ci = "95% CI",
+          # pred.labels = c("Intercept",
+          #                 "Violence: local (<=20 km)",
+          #                 "No violence",
+          #                 "Season: Dry, Ramadan: Yes",
+          #                 "Season: Rainy, Ramadan: No"),
+          dv.labels = c("Total Visits"))
+
+```
+

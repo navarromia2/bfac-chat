@@ -1,0 +1,91 @@
+---
+title: "02B_tab-2-pois-local-violence"
+author: "Mia Navarro"
+date: "2024-09-26"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("0-config.R"))
+
+#temp data from 01B
+date_data <- "2024-09-26"
+
+df_all <- read_csv(paste0(final_data_path,"df_all_",date_data,".csv"))
+df_mal <- read_csv(paste0(final_data_path,"df_mal_",date_data,".csv"))
+df_pne <- read_csv(paste0(final_data_path,"df_pne_",date_data,".csv"))
+df_dia <- read_csv(paste0(final_data_path,"df_dia_",date_data,".csv"))
+
+head(df_all); head(df_mal); head(df_pne); head(df_dia)
+
+```
+
+### Poisson regression analysis w/ offset
+#### 2B. 2ry analysis: Does violence have a differential effect on treatment seeking patterns?
+
+```{r reg-funcs, warning=F, message=F, include=F}
+
+df_all <- create_collinear_cov(df_all)
+df_mal <- create_collinear_cov(df_mal)
+df_pne <- create_collinear_cov(df_pne)
+df_dia <- create_collinear_cov(df_dia)
+
+```
+
+```{r reg-run, warning=F, message=F, include=F}
+
+m1_pois_near <- create_pois_near(df_all)
+m2_mal_pois_near <- create_pois_near(df_mal)
+m2_pne_pois_near <- create_pois_near(df_pne)
+m2_dia_pois_near <- create_pois_near(df_dia)
+
+## glimpse of results
+summary(m1_pois_near) 
+exp(summary(m1_pois_near)$coeff) #exponentiate to get IRR
+
+```
+
+### 2C. Consolidate to one table. Download.
+```{r}
+
+table_2 <- create_table_2(create_doc=T)
+table_2_html <- create_table_2(create_doc=F)
+
+table_2; table_2_html
+
+```
+
+### "What if we change the reference level to distant violence?"
+```{r eval=F, include=F}
+
+df_all_releveled <- df_all
+df_all_releveled$near_violence <- ordered(df_all_releveled$near_violence, 
+                                          levels=c("Violence >20 km away", 
+                                                    "Violence <=20 km away",  
+                                                    "No violence"))
+
+m1_pois_near_2 <- create_pois_near(df_all_releveled)
+
+exp(summary(m1_pois_near_2)$coeff)
+
+tab_model(m1_pois_near_2,
+          show.loglik=T,string.est = "IRR",string.ci = "95% CI",
+          pred.labels = c("Intercept",
+                          "Violence: local (<=20 km)",
+                          "No violence",
+                          "Season: Dry, Ramadan: Yes",
+                          "Season: Rainy, Ramadan: No"),
+          dv.labels = c("Total Visits"))
+
+```
+

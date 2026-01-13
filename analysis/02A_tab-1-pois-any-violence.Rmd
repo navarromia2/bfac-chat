@@ -1,0 +1,67 @@
+---
+title: "02A_tab-1-pois-any-violence"
+author: "Mia Navarro"
+date: "2024-09-26"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("0-config.R"))
+
+#temp data from 01B
+date_data <- "2024-09-26"
+
+df_all <- read_csv(paste0(final_data_path,"df_all_",date_data,".csv"))
+df_mal <- read_csv(paste0(final_data_path,"df_mal_",date_data,".csv"))
+df_pne <- read_csv(paste0(final_data_path,"df_pne_",date_data,".csv"))
+df_dia <- read_csv(paste0(final_data_path,"df_dia_",date_data,".csv"))
+
+head(df_all); head(df_mal); head(df_pne); head(df_dia)
+
+```
+
+### Poisson regression analysis w/ offset
+#### 2A. Primary analysis: Does violence affect overall treatment seeking patterns?
+
+```{r reg-funcs, warning=F, message=F, include=F}
+
+df_all <- create_collinear_cov(df_all)
+df_mal <- create_collinear_cov(df_mal)
+df_pne <- create_collinear_cov(df_pne)
+df_dia <- create_collinear_cov(df_dia)
+
+```
+
+```{r reg-run, warning=F, message=F, include=F}
+
+m1_pois_any <- create_pois_any(df_all)
+m2_mal_pois_any <- create_pois_any(df_mal)
+m2_pne_pois_any <- create_pois_any(df_pne)
+m2_dia_pois_any <- create_pois_any(df_dia)
+
+## glimpse of results
+summary(m1_pois_any)
+exp(summary(m1_pois_any)$coeff) #exponentiate to get IRR
+
+```
+
+### 2C. Consolidate to one table. Download.
+```{r}
+
+table_1 <- create_table_1(create_doc=T)
+table_1_html <- create_table_1(create_doc=F)
+
+table_1; table_1_html
+
+```
+

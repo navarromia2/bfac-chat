@@ -1,0 +1,53 @@
+---
+title: "04_tab-summary-stats"
+author: "Mia Navarro"
+date: "2025-01-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("0-config.R"))
+
+df_violence <- read_rds(paste0(temp_data_path,"df_violence.rds"))
+
+csps_gps <- read_csv(paste0(temp_data_path,"csps_gps.csv"))
+
+#temp data from 01B
+date_data <- "2024-09-26"
+
+df_all <- read_rds(paste0(final_data_path,"df_all_",date_data,".rds"))
+
+df_visits <- read_csv(paste0(temp_data_path,"df_all_temp_",date_data,".csv"))
+
+```
+
+### Create summary statistics table.
+```{r}
+
+df_visits %>%
+  group_by(visit_year) %>%
+  summarise(n_visits=sum(n_visit),
+            pr_visits=sum(n_visit)*100/188570,
+            n_visits_per_1000=sum(n_visit_per_1000)
+            )
+
+```
+
+```{r}
+hist(df_2$enteredageinmonths[df_2$enteredageinmonths>=0])
+quantile(df_2$enteredageinmonths[df_2$enteredageinmonths>=0], na.rm=T)
+```
+
+```{r}
+
+df_all %>%
+  group_by(visit_year, visit_month, any_violence) %>%
+  summarise(n=n())
+```
+
