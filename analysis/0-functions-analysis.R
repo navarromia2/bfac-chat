@@ -54,6 +54,28 @@ create_pois_any <- function (df) {
   return(m)
 }
 
+create_nb_any_RR <- function (df) {
+  m <- glm.nb(n_visit ~ any_violence + 
+                isRamadan + r1h_now + 
+                n_near_csps + n_fat_near_csps +
+                offset(log(offset_n_visit_tot_csps)), 
+              link = "log", 
+              data = df)
+  
+  return(m)
+}
+
+create_nb_near_RR <- function (df) {
+  m <- glm.nb(n_visit ~ near_violence + 
+                isRamadan + r1h_now + 
+                n_near_csps + n_fat_near_csps +
+                offset(log(offset_n_visit_tot_csps)), 
+              link = "log", 
+              data = df)
+  
+  return(m)
+}
+
 create_pois_cont <- function (df) {
   m <- glm(n_visit ~ min_dist_to_viol + dryRamadan, 
            offset = log(offset_n_visit_tot_csps), 

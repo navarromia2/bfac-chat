@@ -17,8 +17,8 @@ replaceNAs <- function (df) {
 
 create_pois_any_RR <- function (df) {
   m <- glm(n_visit ~ any_violence + 
-             isRamadan + r1h_now + 
-             n_near_csps + n_fat_near_csps,
+             isRamadan + r1h_now, 
+           #+ n_near_csps + n_fat_near_csps,
            # + any_PV + any_SD + any_D, 
            offset = log(offset_n_visit_tot_csps), 
            family = poisson(link = "log"), 

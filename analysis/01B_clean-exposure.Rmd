@@ -21,18 +21,34 @@ Clean up the following variables:
 ### 0. Configure environment. Load data.
 ```{r config, show=F, warning=F, message=F}
 
-source(here::here("0-config.R"))
+source(here::here("analysis/0-config.R"))
 
-vill_codes_names <- read_csv(paste0(raw_data_path,"vill_codes_names.csv"))
+############################
+# Village id and names
+############################
+vill_codes_names <- 
+  read_csv(paste0(raw_data_path,"vill_codes_names.csv"))
 
-vill_csps_gps <- read_csv(paste0(raw_data_path,"vill_csps_gps.csv"), 
-                          col_types = cols(csps = col_integer(), 
-                                           village = col_integer()))
+############################
+# CSPS id, name, village
+############################
+csps_codes <- 
+  read_csv(paste0(raw_data_path,"csps_codes.csv"))
 
-csps_codes <- read_csv(paste0(raw_data_path,"csps_codes.csv"))
+############################
+# CSPS geodata + visit data
+############################
+vill_csps_gps <- 
+  read_csv(paste0(raw_data_path,"vill_csps_gps.csv"), 
+           col_types = cols(csps = col_integer(), 
+                            village = col_integer()))
 
-# Extract CSPS GPS data (`csps_lat` and `csps_lon`).
-csps_gps <- vill_csps_gps %>%
+
+############################
+# CSPS GPS data only
+############################
+csps_gps <- 
+  vill_csps_gps %>%
   dplyr::select(c(csps,csps_lat_new,csps_lon_new)) %>%
   filter(!duplicated(csps)) %>%
   rename(csps_lat = csps_lat_new,
@@ -41,10 +57,14 @@ csps_gps <- vill_csps_gps %>%
 
 write_csv(csps_gps, paste0(temp_data_path, "csps_gps.csv"))
 
-acled_data <- read_csv(paste0(raw_data_path,"ACLED_2020-02-01-2023-04-01-Burkina_Faso v2.csv"))
+############################
+# ACLED event data
+############################
+acled_data <- 
+  read_csv(paste0(raw_data_path,"ACLED_2020-02-01-2023-04-01-Burkina_Faso v2.csv"))
 
-#temp data from 01A file
-date_data <- "2024-09-26"
+
+date_data <- "2026-11-02"
 
 df_all_temp <- read_csv(paste0(temp_data_path,"df_all_temp_",date_data,".csv"))
 df_mal_temp <- read_csv(paste0(temp_data_path,"df_mal_temp_",date_data,".csv"))

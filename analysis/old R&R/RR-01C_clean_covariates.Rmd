@@ -10,7 +10,7 @@ output:
 ### 0. Configure environment. Load data.
 ```{r config, show=F, warning=F, message=F}
 
-source(here::here("0-config.R"))
+source(here::here("analysis/0-config.R"))
 
 date_data <- "2024-09-26"
 df_all_v4 <- read_rds(paste0(final_data_path,"df_all_",date_data,".rds"))
@@ -18,39 +18,12 @@ df_mal_v4 <- read_rds(paste0(final_data_path,"df_mal_",date_data,".rds"))
 df_pne_v4 <- read_rds(paste0(final_data_path,"df_pne_",date_data,".rds"))
 df_dia_v4 <- read_rds(paste0(final_data_path,"df_dia_",date_data,".rds"))
 
-rain_data <- read.csv(paste0(raw_data_path,"hdx_rainfall_data/bfa-rainfall-subnat-full.csv"),
-                      comment = "#")
+############################
+# ACLED event data
+############################
+acled_data <- 
+  read_csv(paste0(raw_data_path,"ACLED_2020-02-01-2023-04-01-Burkina_Faso v2.csv"))
 
-acled_data <- read_csv(paste0(raw_data_path,"ACLED_2020-02-01-2023-04-01-Burkina_Faso v2.csv"))
-
-
-```
-
-Revision 1 Edits:
-
-# Seasonality: 
-## Change from binary indicator of rainy season (May-Oct) to 1-month aggregate amount of rainfall in PRIOR month to account for lagged effects of rainfall on disease transmission. Potentially also show sensitivity analysis of CURRENT month.
-
-### Clean rain_data
-```{r clean-data}
-
-rain_data2 <- rain_data %>%
-  mutate(visit_date_lag = as.Date(date, format = "%Y-%m-%d"),
-         # visit_year_lag = year(visit_date_lag),
-         # visit_month_lag = month(visit_date_lag),
-         visit_date = visit_date_lag %m-% months(1) #,
-         # visit_year = year(visit_date),
-         # visit_month = month(visit_date) 
-  ) %>%
-  dplyr::filter(year(visit_date_lag) >= 2020, 
-                PCODE == "BF4603",
-                day(visit_date_lag) == 1) %>% 
-  dplyr::select(visit_date_lag, visit_date, r1h)
-
-# n_pixels: number of input pixels used to create aggregates (Kossi Province = 243)
-# r1h:      1-mo rolling aggregation [mm]
-
-rain_data2
 
 ```
 

@@ -30,6 +30,34 @@ head(df_all); head(df_mal); head(df_pne); head(df_dia)
 
 ```
 
+
+
+### NEGATIVE BINOMIAL regression analysis w/ offset
+#### 1A. 2ry analysis: Does violence have a differential effect on treatment seeking patterns?
+
+```{r reg-run, warning=F, message=F, include=F}
+
+m1_nb_near2 <- create_nb_near_RR(df_all2)
+m2_mal_nb_near2 <- create_nb_near_RR(df_mal2)
+m2_pne_nb_near2 <- create_nb_near_RR(df_pne2)
+m2_dia_nb_near2 <- create_nb_near_RR(df_dia2)
+
+## glimpse of results
+summary(m1_nb_near2) 
+exp(summary(m1_nb_near2)$coeff) #exponentiate to get IRR
+
+```
+
+### 1B. Consolidate to one table. Download.
+```{r}
+
+table_2_nb_RR <- create_table_2_nb_RR(create_doc=T)
+table_2_nb_html_RR <- create_table_2_nb_RR(create_doc=F)
+
+table_2_nb_RR; table_2_nb_html_RR
+
+```
+
 ### Poisson regression analysis w/ offset
 #### 2B. 2ry analysis: Does violence have a differential effect on treatment seeking patterns?
 
