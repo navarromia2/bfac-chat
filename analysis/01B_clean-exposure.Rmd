@@ -1,5 +1,5 @@
 ---
-title: "01B_clean-exposure"
+title: "01B. Clean Exposure (ACLED) Data"
 author: "Mia Navarro"
 date: "2024-05-18"
 output: html_document
@@ -13,10 +13,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Clean up the following variables:
 
-*  `Y`: visits by CSPS and month (count) SEE 01.2.0 FILE
-*  `A`: violence by year in Nouna (count, number of events)
-*  `C1`: season (wet/dry) SEE 01.2.0 FILE
-*  `C2`: Ramadan (binary) SEE 01.2.0 FILE
+*  `A_1ry`: [bin] any events                              by CSPS-month
+*  `A_2ry`: [cat] no (0), local (1), distant (2) events   by CSPS-month
+*  `A_3ry`: [bin] any political viol, demo, strategic dev by CSPS-month
+*  `A_3ry`: [bin] any non-/violent events                 by CSPS-month
 
 ### 0. Configure environment. Load data.
 ```{r config, show=F, warning=F, message=F}
@@ -43,7 +43,6 @@ vill_csps_gps <-
            col_types = cols(csps = col_integer(), 
                             village = col_integer()))
 
-
 ############################
 # CSPS GPS data only
 ############################
@@ -63,65 +62,56 @@ write_csv(csps_gps, paste0(temp_data_path, "csps_gps.csv"))
 acled_data <- 
   read_csv(paste0(raw_data_path,"ACLED_2020-02-01-2023-04-01-Burkina_Faso v2.csv"))
 
+############################
+# File 01A data
+############################
+df_01A_all <- read_csv(paste0(temp_data_path,"df_01A_all.csv"))
+df_01A_mal <- read_csv(paste0(temp_data_path,"df_01A_mal.csv"))
+df_01A_pne <- read_csv(paste0(temp_data_path,"df_01A_pne.csv"))
+df_01A_dia <- read_csv(paste0(temp_data_path,"df_01A_dia.csv"))
 
-date_data <- "2026-11-02"
-
-df_all_temp <- read_csv(paste0(temp_data_path,"df_all_temp_",date_data,".csv"))
-df_mal_temp <- read_csv(paste0(temp_data_path,"df_mal_temp_",date_data,".csv"))
-df_pne_temp <- read_csv(paste0(temp_data_path,"df_pne_temp_",date_data,".csv"))
-df_dia_temp <- read_csv(paste0(temp_data_path,"df_dia_temp_",date_data,".csv"))
 
 ```
 
-### Clean violence data.
-```{r viol, warning=F, message=F}
-
-df_violence <- 
+### 1. Prepare event data for exposure variable operationalization.
+```{r prep-df, warning=F, message=F}
+#################################
+# Format id + date vars. 
+# Include Kossi Province only.
+#################################
+acled_01B_details <- 
   acled_data %>%
+  dplyr::filter(admin2 %in% c("Kossi")) %>%
   mutate(date = as.Date(event_date, format = "%d %B %Y")) %>%
   mutate(month = month(date)) %>%
   relocate(date, .after=event_date) %>%
   relocate(month, .after=year) %>%
   arrange(date) %>%
-  filter(admin2 %in% c("Kossi")) %>%
-  dplyr::select(c(year,month,longitude,latitude))
+  mutate(id_event = row_number()) %>%       # Add row ids
+  relocate(id_event, .before = "event_id_cnty")
+  
+#################################
+# Extract GPS and date data
+#################################
+acled_01B_gps <-
+  acled_01B_details %>%
+  dplyr::select(c(id_event,year,month,longitude,latitude))
 
-
-df_violence$id_event <- 1:nrow(df_violence)
-
-df_violence <-
-  df_violence %>%
-  relocate(id_event, .before=year)
-
-df_violence
-
-write_rds(df_violence, paste0(temp_data_path,"df_violence.rds"))
-
-acled_data %>% group_by(disorder_type) %>% summarise(n=n())
-acled_data %>% group_by(event_type) %>% summarise(n=n())
+write_rds(acled_01B_gps, paste0(temp_data_path,"df_violence.rds")) # Save
 
 ```
 
-### Determine max distance to consider a CSPS "close" to violent event.
-```{r distance, warning=F, message=F}
 
-mean(vill_csps_gps$dist_csps); sd(vill_csps_gps$dist_csps)
-median(vill_csps_gps$dist_csps); quantile(vill_csps_gps$dist_csps, probs=seq(0,1,0.1))
-
-hist(vill_csps_gps$dist_csps, breaks = 14)
-
-maxdist_km = 20 #We'll use 20 km.
-
-```
-
-### Loop through CSPS. Append row to violence data for each CSPS with flags if within 20 km.
-```{r, warning=F, message=F}
-
-# calculate distances of each csps from each event in meters
+### 2A. Calculate distance of every event from every CSPS.
+```{r dist-recipe, warning=F, message=F}
+#################################
+# Calculate dist between every
+# event and csps (in meters)
+#################################
 for (hf in csps_gps$csps){
   
-  near_viol <- 
-    recipe(~., data = df_violence) %>%
+  events_01B_recipe <- 
+    recipe(~., data = acled_01B_gps) %>%
     update_role(id_event, new_role = "location") %>%
     step_geodist(
       lat = latitude, 
@@ -131,86 +121,203 @@ for (hf in csps_gps$csps){
       ref_lon = csps_gps$csps_lon[csps_gps$csps==hf],
       is_lat_lon = TRUE
       ) %>%
-    prep(training = df_violence)
+    prep(training = acled_01B_gps)
   
-  df_violence <- bake(near_viol, new_data = NULL)
-  colnames(df_violence)[ncol(df_violence)] <- paste0("dist_csps_",hf)
+  dist_col <- paste0("dist_csps_", hf)
   
-}
-
-df_viol2 <- df_violence #make copy
-df_viol2[,6:50] <- df_viol2[,6:50]/1e3 #convert m to km
-
-
-# define `near_viol` == 1 if within 20 km, == 2 if beyond 20 km
-for (hf in csps_gps$csps){
+  acled_01B_gps <- 
+    bake(events_01B_recipe, new_data = NULL) %>%
+    mutate(geo_dist = round(geo_dist / 1000, digits = 1)) %>%   # meters to km
+    rename(!!dist_col := geo_dist)
   
-  tempdf <- 
-    df_viol2 %>% 
-    group_by(year,month) %>% 
-    summarise(
-      near_violence = 
-        ifelse(min(get(paste0("dist_csps_",hf)))<=maxdist_km,2,1))
-  
-  df_viol2 <- 
-    df_viol2 %>% 
-    left_join(tempdf, by = c("year", "month"))
+  colnames(acled_01B_gps)[ncol(acled_01B_gps)] <- paste0("dist_csps_",hf)
   
 }
 
-colnames(df_viol2)[51:95] <- csps_gps$csps
-df_viol2$date <- as.Date(paste0(df_viol2$month,"/01/",df_viol2$year), "%m/%d/%Y")
-
-df_viol2 <-
-  df_viol2 %>%
-  relocate(date, .before=year)
-
-df_viol2
+#################################
+# Merge with ACLED details
+#################################
+events_01B_merged <- 
+  bake(events_01B_recipe, new_data = NULL) %>% # Convert to df
+  left_join(acled_01B_details %>% dplyr::select(c(1,2,8:10,21:25,29:32)), 
+            by = "id_event") %>%
+  dplyr::select(-any_of("geo_dist"))
+  
+colnames(acled_01B_details)
+colnames(events_01B_merged)
 
 ```
 
-### Create two dfs: one for categorial (`near_violence`) and one for continuous (`min_dist_to_viol`)
-```{r}
-# categorial
-df_viol3_cat <- df_viol2 %>% dplyr::select(c(2,52:96)) 
 
-df_viol4_cat <- 
-  make_viol_df_long(df_viol3_cat) %>% 
-  arrange(csps, year, month, -near_violence) %>% 
-  distinct()
+### 2B. Calculate max distance from household to CSPS. 
+This will define radius within which an event is considered local to the CSPS.
+```{r calc-distance, warning=F, message=F}
 
-# continuous
-df_viol3_cont <- df_viol2 %>% dplyr::select(c(2,7:51))
+#################################
+# Summary statistics
+#################################
+mean(vill_csps_gps$dist_csps)   # 4.97 km
+sd(vill_csps_gps$dist_csps)     # 3.04 km
 
-colnames(df_viol3_cont)[2:46] <- csps_codes$csps
+median(vill_csps_gps$dist_csps) # 4.95 km
+quantile(vill_csps_gps$dist_csps, probs=seq(0,1,0.1))
 
-df_viol4_cont <- 
-  make_viol_df_long(df_viol3_cont, "dist_to_viol") %>%
+hist(vill_csps_gps$dist_csps, breaks = 28)
+
+#################################
+# Set "local" radius = 20 km
+#################################
+
+```
+
+
+### 3. Define exposure variables:
+
+- 1ry: [bin] any events                              by CSPS-month
+- 2ry: [cat] no (0), local (1), distant (2) events   by CSPS-month
+- 3ry: [int] number of fatalities                    by CSPS-month
+- 3ry: [bin] any political viol, demo, strategic dev by CSPS-month
+- 3ry: [bin] any non-/violent events                 by CSPS-month
+    - violent if 
+     - disorder_type  == "Political violence" or 
+     - sub_event_type == "Violent demonstration")
+
+```{r create-vars}
+#################################
+# Transform wide-to-long
+#################################
+events_01B_long <- 
+  events_01B_merged %>%
+  pivot_longer(
+    starts_with("dist_csps_"),
+    names_to        = "csps",
+    names_prefix    = "dist_csps_",
+    names_transform = as.integer,
+    values_to       = "dist_km"
+  ) %>%
+  relocate(csps, .after = "id_event") %>%
+  mutate(
+    is_loc = dist_km <= 20,
+    is_pol = grepl("Political violence",     disorder_type, fixed = TRUE),
+    is_dem = grepl("Demonstrations",         disorder_type, fixed = TRUE),
+    is_str = grepl("Strategic developments", disorder_type, fixed = TRUE),
+    is_vio = (is_pol) | (sub_event_type %in% "Violent demonstration")
+  )
+
+#################################
+# Aggregate to CSPS-month +
+# generate exposure variables
+# Note: Only mos w/ 1+ event appear.
+# Will need to 
+# - add "None" for event_loc
+# - add zeros to remaining vars
+#################################
+events_01B_variables <- 
+  events_01B_long %>%
   group_by(csps, year, month) %>%
-  summarise(min_dist_to_viol = min(dist_to_viol, na.rm=T)) %>%
-  arrange(csps, year, month, min_dist_to_viol)
+  summarise(
+    # Count and binary indicators (overall)
+    event_tot = n(),
+    event_any = as.integer(event_tot>0),
+    
+    # Binary indicators by violence type and proximity
+    event_any_loc = ifelse(any(is_loc), as.integer(1), as.integer(2)),
+    event_any_pol = as.integer(any(is_pol)),
+    event_any_dem = as.integer(any(is_dem)),
+    event_any_str = as.integer(any(is_str)),
+    event_any_vio = as.integer(any(is_vio)),
+    event_any_loc_vio = as.integer(any(is_loc & is_vio)),
+    
+    # Count indicators by violence type and proximity
+    event_tot_fat = as.integer(sum(fatalities, na.rm = T)),
+    event_tot_loc = sum(is_loc, na.rm = T),
+    event_tot_pol = sum(is_pol, na.rm = T),
+    event_tot_dem = sum(is_dem, na.rm = T),
+    event_tot_str = sum(is_str, na.rm = T),
+    event_tot_vio = sum(is_vio, na.rm = T),
+    event_tot_loc_vio = sum(is_loc & is_vio, na.rm = T),
+    event_min_dist = min(dist_km, na.rm = T),
+    event_max_dist = max(dist_km, na.rm = T)
+    ) %>% ungroup()
+
+events_01B_variables
+
+#################################
+# Merge w/ outcome & covar data
+# (which includes non-event mos)
+#################################
+# Overall
+df_01B_all <- 
+  df_01A_all %>%
+  left_join(events_01B_variables,
+            by = join_by(csps, 
+                         visit_year == year, 
+                         visit_month == month)) %>%
+  mutate(across(c(starts_with("event_"), -event_min_dist, -event_max_dist) , 
+                ~ replace_na(.x, as.integer(0))),
+         event_any_loc = factor(event_any_loc, levels = 0:2,
+                                labels = c("None", 
+                                           "Local (<=20 km)", 
+                                           "Distant (>20 km)")))
+
+# Malaria
+df_01B_mal <- 
+  df_01A_mal %>%
+  left_join(events_01B_variables,
+            by = join_by(csps, 
+                         visit_year == year, 
+                         visit_month == month)) %>%
+  mutate(across(c(starts_with("event_"), -event_min_dist, -event_max_dist) , 
+                ~ replace_na(.x, as.integer(0))),
+         event_any_loc = factor(event_any_loc, levels = 0:2,
+                                labels = c("None", 
+                                           "Local (<=20 km)", 
+                                           "Distant (>20 km)")))
+
+# Pneumonia
+df_01B_pne <- 
+  df_01A_pne %>%
+  left_join(events_01B_variables,
+            by = join_by(csps, 
+                         visit_year == year, 
+                         visit_month == month)) %>%
+  mutate(across(c(starts_with("event_"), -event_min_dist, -event_max_dist) , 
+                ~ replace_na(.x, as.integer(0))),
+         event_any_loc = factor(event_any_loc, levels = 0:2,
+                                labels = c("None", 
+                                           "Local (<=20 km)", 
+                                           "Distant (>20 km)")))
+
+# Diarrhea
+df_01B_dia <- 
+  df_01A_dia %>%
+  left_join(events_01B_variables,
+            by = join_by(csps, 
+                         visit_year == year, 
+                         visit_month == month)) %>%
+  mutate(across(c(starts_with("event_"), -event_min_dist, -event_max_dist) , 
+                ~ replace_na(.x, as.integer(0))),
+         event_any_loc = factor(event_any_loc, levels = 0:2,
+                                labels = c("None", 
+                                           "Local (<=20 km)", 
+                                           "Distant (>20 km)")))
+
 ```
 
+### 2C: Save data.
+```{r save, warning=F, message=F}
 
-### 2C: Merge data with outcome and covariate data frames. Download.
-```{r merge, warning=F, message=F}
+tail(df_01B_all)
 
-df_all_v4 <- generate_final_data(df_all_temp)
-df_mal_v4 <- generate_final_data(df_mal_temp)
-df_pne_v4 <- generate_final_data(df_pne_temp)
-df_dia_v4 <- generate_final_data(df_dia_temp)
+write_rds(df_01B_all, paste0(final_data_path,"df_01B_all.rds"))
+write_rds(df_01B_mal, paste0(final_data_path,"df_01B_mal.rds"))
+write_rds(df_01B_pne, paste0(final_data_path,"df_01B_pne.rds"))
+write_rds(df_01B_dia, paste0(final_data_path,"df_01B_dia.rds"))
 
-head(df_all_v4)
-
-write_csv(df_all_v4, paste0(final_data_path,"df_all_",Sys.Date(),".csv"))
-write_csv(df_mal_v4, paste0(final_data_path,"df_mal_",Sys.Date(),".csv"))
-write_csv(df_pne_v4, paste0(final_data_path,"df_pne_",Sys.Date(),".csv"))
-write_csv(df_dia_v4, paste0(final_data_path,"df_dia_",Sys.Date(),".csv"))
-
-write_rds(df_all_v4, paste0(final_data_path,"df_all_",Sys.Date(),".rds"))
-write_rds(df_mal_v4, paste0(final_data_path,"df_mal_",Sys.Date(),".rds"))
-write_rds(df_pne_v4, paste0(final_data_path,"df_pne_",Sys.Date(),".rds"))
-write_rds(df_dia_v4, paste0(final_data_path,"df_dia_",Sys.Date(),".rds"))
+write_csv(df_01B_all, paste0(final_data_path,"df_01B_all.csv"))
+write_csv(df_01B_mal, paste0(final_data_path,"df_01B_mal.csv"))
+write_csv(df_01B_pne, paste0(final_data_path,"df_01B_pne.csv"))
+write_csv(df_01B_dia, paste0(final_data_path,"df_01B_dia.csv"))
 
 ```
 

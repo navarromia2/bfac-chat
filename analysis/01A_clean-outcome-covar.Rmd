@@ -13,10 +13,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Clean up the following variables:
 
-*  `Y`:  sick-child visits per CSPS and month (count)
-*  `A`:  events in Nouna per month (count)
-*  `C1`: rainfall (continuous)
-*  `C2`: Ramadan (binary)
+*  `Y`:  [int] sick-child visits by CSPS-month
+*  `C1`: [dbl] rainfall (mm)     by month
+*  `C2`: [bin] Ramadan           by month
 
 ### 0. Configure environment. Load data.
 ```{r config, show=F, warning=F, message=F}
