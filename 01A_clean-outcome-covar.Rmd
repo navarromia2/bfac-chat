@@ -1,0 +1,392 @@
+---
+title: "01A. Clean Outcome and Covariate Data"
+author: "Mia Navarro"
+date: "2026-11-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+Clean up the following variables:
+
+*  `Y`:  sick-child visits per CSPS and month (count)
+*  `A`:  events in Nouna per month (count)
+*  `C1`: rainfall (continuous)
+*  `C2`: Ramadan (binary)
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("analysis/0-config.R"))
+
+############################
+# Village id and names
+############################
+vill_id_name <- 
+  read_csv(paste0(raw_data_path,"vill_codes_names.csv"))
+
+############################
+# CHAT household census data
+############################
+census <- 
+  read_csv(paste0(raw_data_path,"CHAT_child_census_dataset.csv"))
+
+############################
+# CSPS geodata + visit data
+############################
+vill_csps_gps <- 
+  read_csv(paste0(raw_data_path,"vill_csps_gps.csv"), 
+           col_types = cols(csps = col_integer(), 
+                            village = col_integer()))
+
+############################
+# CSPS surveillance data
+############################
+passive <- 
+  read_csv(paste0(raw_data_path,"passive (1).csv"))
+
+############################
+# HDX rainfall data
+############################
+rain_data <- 
+  read.csv(paste0(raw_data_path,"hdx_rainfall_data/bfa-rainfall-subnat-full.csv"),
+           comment = "#")
+
+```
+
+
+### 1A. Clean village demographic data (name, `n_census`).
+```{r village-dem-data, warning=F, message=F}
+
+#################################
+# Number of children per village
+# Note: There are more villages 
+# in vill_id_name (n=288)
+# than in census (n=249)
+#################################
+vill_01A_pop <- 
+  census %>% 
+  distinct(childID, .keep_all = T) %>%
+  group_by(village) %>%
+  summarise(n_census=n()) %>%
+  left_join(vill_id_name, by="village") %>% # Merge village names
+  arrange(village) %>%
+  relocate(commune, .after = "village")
+
+#################################
+# Save to temp data folder
+#################################
+write.csv(vill_01A_pop, paste0(temp_data_path,"vill_01A_pop.csv"))
+
+```
+
+### 1B. Clean wide data.
+```{r clean-wide-data, warning=F, message=F}
+
+#################################
+# Create dx and date variables
+#################################
+visit_01A_labelled <- 
+  passive %>%
+  mutate(visit_date = as.Date(starttime),
+         visit_year = year(starttime),
+         visit_month = month(starttime),
+         dx_type = case_when(diagnosis__57 == 1 ~ 1, #sev malaria
+                             diagnosis__58 == 1 ~ 1, #non-sev malaria
+                             diagnosis__39 == 1 ~ 2, #broncho-pneum
+                             diagnosis__40 == 1 ~ 2, #low pneum
+                             diagnosis__64 == 1 ~ 2, #pneum
+                             diagnosis__21 == 1 ~ 3, #diarrhea
+                             .default = 0)) 
+
+#################################
+# Merge CSPS and village dem data
+#################################
+visit_01A_merged <- 
+  visit_01A_labelled %>%
+  left_join(vill_01A_pop, by=join_by(village==village)) %>%
+  mutate(inv_wt_vill_pop = 1/n_census) # visit wt by village pop size
+
+#################################
+# Exclude csps outside of Nouna
+# and with missing csps ids
+#################################
+visit_01A_filtered <- #df_2
+  visit_01A_merged %>% 
+  dplyr::filter(!grepl("Outside Nouna",csps_name)) %>% 
+  dplyr::filter(!is.na(csps_name))
+
+#################################
+# Generate aggregate monthly
+# visit counts -- overall
+#################################
+visit_01A_all <- #df_3
+  visit_01A_filtered  %>%
+  group_by(csps,visit_year,visit_month) %>%
+  summarise(n_visit = n()) # %>% dplyr::filter(!csps %in% c(28,50)) #%>% arrange(desc(n_visit_per100))
+
+#################################
+# Generate aggregate monthly
+# visit counts -- by diagnosis
+#################################
+visit_01A_dx <- 
+  visit_01A_filtered %>% 
+  group_by(csps,visit_year,visit_month,dx_type) %>%
+  summarise(n_visit = n()) # %>% dplyr::filter(!csps %in% c(28,50)) #%>% arrange(desc(n_visit_per100))
+
+#################################
+# Quick "sanity checks"
+################################# 
+length(unique(visit_01A_all$village)) #n=257 (7 more than in census df)
+length(unique(vill_csps_gps$villcode)) #n=226 (31 fewer than in passive surveillance df)
+
+```
+
+### 1C. Create subsets of data.
+```{r create-df-by-dx, warning=F, message=F}
+
+#################################
+# Create diagnosis-specific dfs
+#################################
+mal_01A_filtered <- visit_01A_dx %>% filter(dx_type == 1)
+pne_01A_filtered <- visit_01A_dx %>% filter(dx_type == 2)
+dia_01A_filtered <- visit_01A_dx %>% filter(dx_type == 3)
+
+#################################
+# Wide-to-long transformation + 
+# add NAs for unobserved months
+# (See 0-functions-processing.R
+# for helper function details.)
+#################################
+all_01A_merged <- w2l_helper(visit_01A_all)
+mal_01A_merged <- w2l_helper(mal_01A_filtered) 
+pne_01A_merged <- w2l_helper(pne_01A_filtered)
+dia_01A_merged <- w2l_helper(dia_01A_filtered)
+
+#################################
+# Create visit_date variable
+#################################
+# Overall
+all_01A_mutated <- 
+  all_01A_merged %>%
+  mutate(visit_date = lubridate::make_date(visit_year, visit_month, 1)) %>%
+  relocate(visit_date, .before = visit_year)
+
+# Malaria
+mal_01A_mutated <- 
+  mal_01A_merged %>%
+  mutate(visit_date = lubridate::make_date(visit_year, visit_month, 1)) %>%
+  relocate(visit_date, .before = visit_year)
+
+# Pneumonia
+pne_01A_mutated <- 
+  pne_01A_merged %>%
+  mutate(visit_date = lubridate::make_date(visit_year, visit_month, 1)) %>%
+  relocate(visit_date, .before = visit_year)
+
+# Diarrhea
+dia_01A_mutated <- 
+  dia_01A_merged %>%
+  mutate(visit_date = lubridate::make_date(visit_year, visit_month, 1)) %>%
+  relocate(visit_date, .before = visit_year)
+
+```
+
+### 2. Create and merge offset variable, total observed visits per CSPS
+```{r offset-var}
+
+#################################
+# Total visits by CSPS and village
+#################################
+visits_01A_cv_obs <- 
+  passive %>%
+  filter(csps > 0) %>%
+  group_by(csps, village) %>%
+  summarise(n_visits_observed = n(), .groups = "drop") %>%
+  arrange(csps, village)
+
+#################################
+# Merge village census population
+#################################
+visits_01A_cv_merged <- 
+  visits_01A_cv_obs %>%
+  left_join(vill_01A_pop, by = "village")
+
+#################################
+# Max possible visits by CSPS
+#################################
+visits_01A_cv_max <- 
+  visits_01A_cv_obs %>%
+  group_by(csps) %>%
+  summarise(n_visits_expected_max = sum(n_visits_observed, na.rm = TRUE))
+
+#################################
+# Total visits by CSPS
+# (i.e., offset in the negative
+# binomial regression models)
+#################################
+visits_01A_by_csps <- 
+  passive %>%
+  filter(csps > 0) %>%
+  group_by(csps) %>%
+  summarise(offset_tot_csps_visits = n()) %>%
+  arrange(csps)
+
+#################################
+# Merge offset to main data
+# (See 0-functions-processing.R
+# for helper function details.)
+#################################
+all_01A_merged2 <- merge_offset(all_01A_mutated)
+mal_01A_merged2 <- merge_offset(mal_01A_mutated) 
+pne_01A_merged2 <- merge_offset(pne_01A_mutated)
+dia_01A_merged2 <- merge_offset(dia_01A_mutated)
+
+```
+
+### 3. Clean and merge rainfall covariate data.
+This is the 1-month aggregate amount of rainfall in PRIOR month to account for lagged effects of rainfall on disease transmission. Also created variable of CURRENT month, but not used in analyses.
+```{r rainfall-var}
+
+#################################
+# Create actual + 1-month lag 
+# date variables
+#################################
+rain_01A_mutated <- 
+  rain_data %>%
+  mutate(visit_date_lag = as.Date(date, format = "%Y-%m-%d"),
+         visit_date = visit_date_lag %m-% months(1))
+
+#################################
+# Exclude rainfall data 
+# prior to 2020,
+# outside of study catchment area,
+# and on 1st of the month
+
+# n_pixels: number of input pixels 
+#           to create aggregates 
+#           (Kossi Province = 243)
+# r1h: 1-mo rolling aggregation 
+#      [in mm]
+#################################
+rain_01A_filtered <- 
+  rain_01A_mutated %>%
+  dplyr::filter(year(visit_date_lag) >= 2020, 
+                PCODE == "BF4603",
+                day(visit_date_lag) == 1) %>% 
+  dplyr::select(visit_date_lag, visit_date, r1h)
+
+#################################
+# Merge rainfall to main data
+#################################
+# Overall
+all_01A_merged3 <- 
+  all_01A_merged2 %>% 
+  left_join(rain_01A_filtered[,c(1,3)], 
+            by = join_by(visit_date == visit_date_lag)) %>%
+  left_join(rain_01A_filtered[,c(2,3)], 
+            by = join_by(visit_date == visit_date)) %>%
+  rename(r1h_lag = r1h.x,
+         r1h_now = r1h.y)
+
+# Malaria
+mal_01A_merged3 <- 
+  mal_01A_merged2 %>% 
+  left_join(rain_01A_filtered[,c(1,3)], 
+            by = join_by(visit_date == visit_date_lag)) %>%
+  left_join(rain_01A_filtered[,c(2,3)], 
+            by = join_by(visit_date == visit_date)) %>%
+  rename(r1h_lag = r1h.x,
+         r1h_now = r1h.y)
+
+# Pneumonia
+pne_01A_merged3 <- 
+  pne_01A_merged2 %>% 
+  left_join(rain_01A_filtered[,c(1,3)], 
+            by = join_by(visit_date == visit_date_lag)) %>%
+  left_join(rain_01A_filtered[,c(2,3)], 
+            by = join_by(visit_date == visit_date)) %>%
+  rename(r1h_lag = r1h.x,
+         r1h_now = r1h.y)
+
+# Diarrhea
+dia_01A_merged3 <- 
+  dia_01A_merged2 %>% 
+  left_join(rain_01A_filtered[,c(1,3)], 
+            by = join_by(visit_date == visit_date_lag)) %>%
+  left_join(rain_01A_filtered[,c(2,3)], 
+            by = join_by(visit_date == visit_date)) %>%
+  rename(r1h_lag = r1h.x,
+         r1h_now = r1h.y)
+
+```
+
+### 4. Create and merge Ramadan variable.
+Updated November 2 2026: Now use exact dates of Ramadan, instead of months.
+```{r ramadan}
+#################################
+# Ramadan dates (2020-2022)
+# This helps determine whether 
+# ramadan occurs for a sufficient
+# number of days in a given mo.
+# to assign ramadan==1
+#################################
+# 2020-04-24 to 2020-05-23
+# 2021-04-13 to 2021-05-12
+# 2022-04-02 to 2022-05-01
+
+#################################
+# Create + merge Ramadan var
+#################################
+all_01A_mutated2 <-
+  all_01A_merged3 %>%
+  mutate(ramadan = as.integer(
+    (visit_year == 2020 & visit_month %in% c(5)) |
+    (visit_year == 2021 & visit_month %in% c(4, 5)) |
+    (visit_year == 2022 & visit_month %in% c(4))
+  ))
+
+mal_01A_mutated2 <-
+  mal_01A_merged3 %>%
+  mutate(ramadan = as.integer(
+    (visit_year == 2020 & visit_month %in% c(4, 5)) |
+    (visit_year == 2021 & visit_month %in% c(4, 5)) |
+    (visit_year == 2022 & visit_month %in% c(4, 5))
+  ))
+
+pne_01A_mutated2 <-
+  pne_01A_merged3 %>%
+  mutate(ramadan = as.integer(
+    (visit_year == 2020 & visit_month %in% c(4, 5)) |
+    (visit_year == 2021 & visit_month %in% c(4, 5)) |
+    (visit_year == 2022 & visit_month %in% c(4, 5))
+  ))
+
+dia_01A_mutated2 <-
+  all_01A_merged3 %>%
+  mutate(ramadan = as.integer(
+    (visit_year == 2020 & visit_month %in% c(4, 5)) |
+    (visit_year == 2021 & visit_month %in% c(4, 5)) |
+    (visit_year == 2022 & visit_month %in% c(4, 5))
+  ))
+
+```
+
+
+### 5. Save data.
+```{r save-data}
+
+write_csv(all_01A_mutated2, paste0(temp_data_path,"df_01A_all.csv"))
+write_csv(mal_01A_mutated2, paste0(temp_data_path,"df_01A_mal.csv"))
+write_csv(pne_01A_mutated2, paste0(temp_data_path,"df_01A_pne.csv"))
+write_csv(dia_01A_mutated2, paste0(temp_data_path,"df_01A_dia.csv"))
+
+View(all_01A_mutated2)
+
+```
+
+

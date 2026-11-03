@@ -46,25 +46,25 @@ library(renv)
 library(sf)
 library(sjPlot)
 library(spData)
-library(spDataLarge)
+# library(spDataLarge)
 library(splines)
 library(tableone)
 library(terra)
 library(tidyverse)
-library(tmap)    # for static and interactive maps
+# library(tmap)    # for static and interactive maps
 
 # define data paths
-raw_data_path   = paste0(here::here(), "/data/untouched-raw/")
+raw_data_path   = paste0(as.character(here::here()), "/data/untouched-raw/")
 bfa_shp_path    = paste0(raw_data_path,"bfa_adm_igb_20200323_shp/bfa_admbnda_adm2_igb_20200323.shp")
 
 # generated data paths
-temp_data_path  = paste0(here::here(), "/data/temp/")
-final_data_path = paste0(here::here(), "/data/final/")
+temp_data_path  = paste0(as.character(here::here()), "/data/temp/")
+final_data_path = paste0(as.character(here::here()), "/data/final/")
 
 # load base functions
-source(paste0(here::here(),"/analysis/0-functions-processing.R"))
-source(paste0(here::here(),"/analysis/0-functions-analysis.R"))
-source(paste0(here::here(),"/analysis/0-functions-RR.R"))
+source(paste0(as.character(here::here()),"/analysis/0-functions-processing.R"))
+source(paste0(as.character(here::here()),"/analysis/0-functions-analysis.R"))
+source(paste0(as.character(here::here()),"/analysis/99-functions-RR.R"))
 
 # define figure and table paths
 figure_path     = paste0(here::here(), "/results/figs/")
