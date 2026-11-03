@@ -13,6 +13,7 @@ setwd(wd_path)
 
 # load required packages
 library(assertthat)
+library(broom)
 library(cowplot)
 library(dplyr)
 library(foreign)
@@ -62,9 +63,9 @@ temp_data_path  = paste0(as.character(here::here()), "/data/temp/")
 final_data_path = paste0(as.character(here::here()), "/data/final/")
 
 # load base functions
-source(paste0(as.character(here::here()),"/analysis/0-functions-processing.R"))
+source(paste0(as.character(here::here()),"/analysis/0-functions.R"))
 source(paste0(as.character(here::here()),"/analysis/0-functions-analysis.R"))
-source(paste0(as.character(here::here()),"/analysis/99-functions-RR.R"))
+# source(paste0(as.character(here::here()),"/analysis/99-functions-RR.R"))
 
 # define figure and table paths
 figure_path     = paste0(here::here(), "/results/figs/")

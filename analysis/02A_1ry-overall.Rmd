@@ -1,0 +1,109 @@
+---
+title: "02C. Main analysis of effects on treatment-seeking"
+author: "Mia Navarro"
+date: "2026-11-03"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("analysis/0-config.R"))
+
+############################
+# File 01B data
+############################
+df_all <- readRDS(paste0(final_data_path,"df_01B_all.rds"))
+df_mal <- readRDS(paste0(final_data_path,"df_01B_mal.rds"))
+df_pne <- readRDS(paste0(final_data_path,"df_01B_pne.rds"))
+df_dia <- readRDS(paste0(final_data_path,"df_01B_dia.rds"))
+
+colnames(df_all)
+
+```
+
+### 1. Create regression models.
+
+* RQ 1: Does political unrest and terrorism affect overall treatment-seeking patterns?
+* RQ 1.1: Do effects of political unrest and terrorism on treatment seeking patterns differ by diagnosis?
+
+```{r create-models, warning=F, message=F, include=F}
+#################################
+# Create negative binomial
+# regression models across diff
+# exposure variables.
+# (See 0-functions-analysis.R
+# for helper function details.)
+#################################
+# 1ry analysis: Binary exposure (any event)
+m1_all_any <- negbin_helper(df_all, "event_any")
+m1_mal_any <- negbin_helper(df_mal, "event_any")
+m1_pne_any <- negbin_helper(df_pne, "event_any")
+m1_dia_any <- negbin_helper(df_dia, "event_any")
+
+## glimpse of results
+summary(m1_all_any)
+exp(summary(m1_all_any)$coeff) #exponentiate to get IRR
+
+```
+
+### 2. Format results table. Download.
+```{r create-table}
+
+table_1ry_html <- 
+  
+  tab_model(
+       m1_all_any,
+       m1_mal_any,
+       m1_pne_any,
+       m1_dia_any,
+       
+       show.loglik=T,
+       string.est = "IRR",
+       string.ci = "95% CI",
+       
+       pred.labels = c("Intercept",
+                       "Political unrest & terrorism (0/1)",
+                       "Ramadan (0/1)",
+                       "Rainfall (mm)"
+                       ),
+       
+       dv.labels = c("Total Visits", 
+                     "Malaria Visits", 
+                     "Pneumonia Visits", 
+                     "Diarrhea Visits") )
+
+table_1ry_html
+
+tab_model(
+   m1_all_any,
+   m1_mal_any,
+   m1_pne_any,
+   m1_dia_any,
+   
+   show.loglik=T,
+   string.est = "IRR",
+   string.ci = "95% CI",
+   
+   pred.labels = c("Intercept",
+                   "Political unrest & terrorism (0/1)",
+                   "Ramadan (0/1)",
+                   "Rainfall (mm)"
+                   ),
+   
+   dv.labels = c("Total Visits", 
+                 "Malaria Visits", 
+                 "Pneumonia Visits", 
+                 "Diarrhea Visits"),
+   
+   file = paste0(table_path,"table-2-1ry-results.doc") )
+
+```

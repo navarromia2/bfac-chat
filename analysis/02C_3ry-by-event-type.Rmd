@@ -1,0 +1,155 @@
+---
+title: "02C. Exploratory analyses of effects by event type"
+author: "Mia Navarro"
+date: "2026-11-03"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+### 0. Configure environment. Load data.
+```{r config, show=F, warning=F, message=F}
+
+source(here::here("analysis/0-config.R"))
+
+############################
+# File 01B data
+############################
+df_all <- readRDS(paste0(final_data_path,"df_01B_all.rds"))
+df_mal <- readRDS(paste0(final_data_path,"df_01B_mal.rds"))
+df_pne <- readRDS(paste0(final_data_path,"df_01B_pne.rds"))
+df_dia <- readRDS(paste0(final_data_path,"df_01B_dia.rds"))
+
+colnames(df_all)
+
+```
+
+### Create regression models.
+
+* RQ 3.1: Do effects of political unrest and terrorism on treatment-seeking differ by disorder type?
+* RQ 3.2: Do effects of political unrest and terrorism on treatment seeking patterns differ by intensity?
+
+```{r reg-run, warning=F, message=F, include=F}
+#################################
+# Create negative binomial
+# regression models across diff
+# exposure variables.
+# (See 0-functions-analysis.R
+# for helper function details.)
+#################################
+m1_all_any <- negbin_helper(df_all, "event_any")
+
+# 3ry analysis: Stratified analyses by disorder type (added in R&R)
+m3_all_any_pol <- negbin_helper(df_all, "event_any_pol")
+m3_all_any_dem <- negbin_helper(df_all, "event_any_dem")
+m3_all_any_str <- negbin_helper(df_all, "event_any_str")
+
+# 3ry analysis: Stratified analyses by event intensity (added in R&R)
+m3_all_any_vio <- negbin_helper(df_all, "event_any_vio")
+
+## glimpse of results
+summary(m3_all_any_vio)
+exp(summary(m3_all_any_vio)$coeff) #exponentiate to get IRR
+
+```
+
+### 2A. Format results table. Download. (Intensity; non-/violent)
+```{r create-table}
+
+table_3ry_viol_html <- 
+  
+  tab_model(
+       m3_all_any_vio,
+       
+       show.loglik=T,
+       string.est = "IRR",
+       string.ci = "95% CI",
+       
+       pred.labels = c("Intercept",
+                       "Political unrest & terrorism (0/1)",
+                       "Ramadan (0/1)",
+                       "Rainfall (mm)"
+                       ),
+       
+       dv.labels = c("Intensity (Non-/violent)") )
+
+table_3ry_viol_html
+
+tab_model(
+   m3_all_any_vio,
+   
+   show.loglik=T,
+   string.est = "IRR",
+   string.ci = "95% CI",
+   
+   pred.labels = c("Intercept",
+                   "Political unrest & terrorism (0/1)",
+                   "Ramadan (0/1)",
+                   "Rainfall (mm)"
+                   ),
+   
+   dv.labels = c("Intensity (Non-/violent)"),
+   
+   file = paste0(table_path,"table-5-3ry-viol-results.doc") )
+
+```
+
+
+### 2B. Format results table. Download. (Disorder type)
+```{r create-table}
+
+table_3ry_type_html <- 
+  
+  tab_model(
+       m1_all_any,
+       m3_all_any_pol,
+       m3_all_any_dem,
+       m3_all_any_str,
+       
+       show.loglik=T,
+       string.est = "IRR",
+       string.ci = "95% CI",
+       
+       pred.labels = c("Intercept",
+                       "Political unrest & terrorism (0/1)",
+                       "Ramadan (0/1)",
+                       "Rainfall (mm)"
+                       ),
+       
+       dv.labels = c("Overall", 
+                     "Political Violence", 
+                     "Demonstrations", 
+                     "Strategic Developments") )
+
+table_3ry_type_html
+
+tab_model(
+   m1_all_any,
+   m3_all_any_pol,
+   m3_all_any_dem,
+   m3_all_any_str,
+   
+   show.loglik=T,
+   string.est = "IRR",
+   string.ci = "95% CI",
+   
+   pred.labels = c("Intercept",
+                   "Political unrest & terrorism (0/1)",
+                   "Ramadan (0/1)",
+                   "Rainfall (mm)"
+                   ),
+   
+   dv.labels = c("Overall", 
+                 "Political Violence", 
+                 "Demonstrations", 
+                 "Strategic Developments"),
+   
+   file = paste0(table_path,"table-4-3ry-type-results.doc") )
+
+```

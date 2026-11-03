@@ -240,10 +240,10 @@ visits_01A_by_csps <-
 # (See 0-functions-processing.R
 # for helper function details.)
 #################################
-all_01A_merged2 <- merge_offset(all_01A_mutated)
-mal_01A_merged2 <- merge_offset(mal_01A_mutated) 
-pne_01A_merged2 <- merge_offset(pne_01A_mutated)
-dia_01A_merged2 <- merge_offset(dia_01A_mutated)
+all_01A_merged2 <- offset_helper(all_01A_mutated)
+mal_01A_merged2 <- offset_helper(mal_01A_mutated) 
+pne_01A_merged2 <- offset_helper(pne_01A_mutated)
+dia_01A_merged2 <- offset_helper(dia_01A_mutated)
 
 ```
 
