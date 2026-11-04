@@ -53,16 +53,15 @@ table_3ry_all_html <-
     string.est = "aIRR",
     string.ci = "95% CI",
     string.p = "p-value",
-    
-    terms = c("event_any", 
-              "event_any_vio", 
-              "event_any_locLocal (<=20 km)",
-              "event_any_locDistant (>20 km)"),
-    
-    pred.labels = c("Any event", 
-                    "Any event (Violent)", 
+
+    pred.labels = c("Intercept",
+                    "Any event (Yes)",
+                    "Ramadan (Yes)",
+                    "Rainfall (mm)",
+                    "Any event (Violent)",
                     "Any event (Local, <=20 km)",
-                    "Any event (Distant, >20 km)" ),
+                    "Any event (Distant, >20 km)"
+                    ),
     
     dv.labels = c("Event Occurrence", 
                   "Event Intensity", 
@@ -82,15 +81,21 @@ tab_model(
   string.ci = "95% CI",
   string.p = "p-value",
   
-  terms = c("event_any", 
-            "event_any_vio", 
+  terms = c("(Intercept)",
+            "event_any",
+            "event_any_vio",
             "event_any_locLocal (<=20 km)",
-            "event_any_locDistant (>20 km)"),
+            "event_any_locDistant (>20 km)",
+            "ramadan",
+            "r1h_now"),
   
-  pred.labels = c("Any event", 
-                  "Any event (Violent)", 
+  pred.labels = c("Intercept",
+                  "Any event",
+                  "Any event (Violent)",
                   "Any event (Local, <=20 km)",
-                  "Any event (Distant, >20 km)" ),
+                  "Any event (Distant, >20 km)",
+                  "Ramadan (Yes)",
+                  "Rainfall (mm)"),
   
   dv.labels = c("Event Occurrence", 
                 "Event Intensity", 

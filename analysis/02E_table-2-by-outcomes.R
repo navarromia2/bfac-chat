@@ -55,9 +55,12 @@ table_2ry_dx_html <-
     string.ci = "95% CI",
     string.p = "p-value",
     
-    terms = c("event_any"),
+    # terms = c("event_any"),
     
-    pred.labels = c("Any event"),
+    pred.labels = c("Intercept",
+                    "Any event (Yes)",
+                    "Ramadan (Yes)",
+                    "Rainfall (mm)" ),
     
     dv.labels = c("Overall", 
                   "Malaria Visits", 
@@ -79,9 +82,12 @@ tab_model(
   string.ci = "95% CI",
   string.p = "p-value",
   
-  terms = c("event_any"),
+  # terms = c("event_any"),
   
-  pred.labels = c("Any event"),
+  pred.labels = c("Intercept",
+                  "Any event (Yes)",
+                  "Ramadan (Yes)",
+                  "Rainfall (mm)" ),
   
   dv.labels = c("Overall", 
                 "Malaria Visits", 

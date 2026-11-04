@@ -266,6 +266,9 @@ rain_01A_mutated <-
 # outside of study catchment area,
 # and on 1st of the month
 
+# Change r1h to [cm] units for
+# interpretation of estimands.
+
 # n_pixels: number of input pixels 
 #           to create aggregates 
 #           (Kossi Province = 243)
@@ -277,7 +280,8 @@ rain_01A_filtered <-
   dplyr::filter(year(visit_date_lag) >= 2020, 
                 PCODE == "BF4603",
                 day(visit_date_lag) == 1) %>% 
-  dplyr::select(visit_date_lag, visit_date, r1h)
+  mutate(r1h = r1h / 10) %>%
+  dplyr::select(visit_date_lag, visit_date, r1h) 
 
 #################################
 # Merge rainfall to main data

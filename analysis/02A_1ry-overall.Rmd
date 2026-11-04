@@ -83,27 +83,27 @@ table_1ry_html <-
 
 table_1ry_html
 
-tab_model(
-   m1_all_any,
-   m1_mal_any,
-   m1_pne_any,
-   m1_dia_any,
-   
-   show.loglik=T,
-   string.est = "IRR",
-   string.ci = "95% CI",
-   
-   pred.labels = c("Intercept",
-                   "Political unrest & terrorism (0/1)",
-                   "Ramadan (0/1)",
-                   "Rainfall (mm)"
-                   ),
-   
-   dv.labels = c("Total Visits", 
-                 "Malaria Visits", 
-                 "Pneumonia Visits", 
-                 "Diarrhea Visits"),
-   
-   file = paste0(table_path,"table-2-1ry-results.doc") )
+# tab_model(
+#    m1_all_any,
+#    m1_mal_any,
+#    m1_pne_any,
+#    m1_dia_any,
+#    
+#    show.loglik=T,
+#    string.est = "IRR",
+#    string.ci = "95% CI",
+#    
+#    pred.labels = c("Intercept",
+#                    "Political unrest & terrorism (0/1)",
+#                    "Ramadan (0/1)",
+#                    "Rainfall (mm)"
+#                    ),
+#    
+#    dv.labels = c("Total Visits", 
+#                  "Malaria Visits", 
+#                  "Pneumonia Visits", 
+#                  "Diarrhea Visits"),
+#    
+#    file = paste0(table_path,"table-2-1ry-results.doc") )
 
 ```
