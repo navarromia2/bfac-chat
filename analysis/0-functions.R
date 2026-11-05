@@ -70,3 +70,54 @@ negbin_helper <- function(df, exposure) {
   
 }
 
+
+####################################################
+# FUNCTION: bfa_map_helper()
+# LOCATION: file 03B
+# Create ggplot maps with event + CSPS geodata
+# input:  viol_shp = shp with event data
+#         csps_shp = shp with outcome name
+#         max_val  = maximum fill (csps visit) value
+#         pt_size  = point size (triangles/circles)
+#         title    = map title
+# output: tempgg   = ggplot map element
+####################################################
+bfa_map_helper <- function (viol_shp, 
+                            csps_shp, 
+                            max_val = 12400,
+                            pt_size = 2.25,
+                            title="") {
+  
+  my_breaks <- seq(0,max_val,6000)
+  
+  tempgg <- 
+    ggplot() +
+    geom_sf(data=shp_03B_kossi,lwd=0.5,fill="#fdf6eb") +
+    coord_sf(crs = 4326) +
+    geom_sf(data=viol_shp, aes(shape = "Event"),
+            fill="#D55E00", size=pt_size) +
+    geom_sf(data=csps_shp, aes(shape = "CSPS", fill=n_visit), size=pt_size) +
+    scale_shape_manual(
+      name = NULL,
+      values = c("Event" = 21, "CSPS" = 24)
+    ) +
+    scale_fill_viridis(
+      name = "Total CSPS Visits",
+      direction = 1,
+      option = "G",
+      limits = c(0,max_val),
+      breaks = my_breaks
+    ) +
+    labs(x="",y="") +
+    theme(
+      panel.grid.major = element_blank(),
+      panel.grid = element_blank(),
+      axis.ticks = element_blank(),
+      axis.text = element_blank(),
+      plot.margin = margin(0,0,0,0, "pt")
+    ) + 
+    theme_minimal() +
+    ggtitle(title)
+  
+  return(tempgg)
+}

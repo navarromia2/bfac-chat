@@ -57,7 +57,7 @@ table_3ry_all_html <-
     pred.labels = c("Intercept",
                     "Any event (Yes)",
                     "Ramadan (Yes)",
-                    "Rainfall (mm)",
+                    "Rainfall (cm)",
                     "Any event (Violent)",
                     "Any event (Local, <=20 km)",
                     "Any event (Distant, >20 km)"
@@ -81,24 +81,18 @@ tab_model(
   string.ci = "95% CI",
   string.p = "p-value",
   
-  terms = c("(Intercept)",
-            "event_any",
-            "event_any_vio",
-            "event_any_locLocal (<=20 km)",
-            "event_any_locDistant (>20 km)",
-            "ramadan",
-            "r1h_now"),
-  
   pred.labels = c("Intercept",
-                  "Any event",
+                  "Any event (Yes)",
+                  "Ramadan (Yes)",
+                  "Rainfall (cm)",
                   "Any event (Violent)",
                   "Any event (Local, <=20 km)",
-                  "Any event (Distant, >20 km)",
-                  "Ramadan (Yes)",
-                  "Rainfall (mm)"),
+                  "Any event (Distant, >20 km)"
+  ),
   
   dv.labels = c("Event Occurrence", 
                 "Event Intensity", 
                 "Event Proximity" ),
   
   file = paste0(table_path,"table-1-diff-exposures.doc") )
+

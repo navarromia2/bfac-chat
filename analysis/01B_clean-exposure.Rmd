@@ -98,6 +98,7 @@ acled_01B_gps <-
   dplyr::select(c(id_event,year,month,longitude,latitude))
 
 write_rds(acled_01B_gps, paste0(temp_data_path,"df_violence.rds")) # Save
+write_csv(acled_01B_gps, paste0(temp_data_path,"df_violence.csv")) # Save
 
 ```
 

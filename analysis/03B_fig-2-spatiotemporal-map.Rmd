@@ -14,35 +14,52 @@ knitr::opts_chunk$set(echo = TRUE)
 ### 0. Configure environment. Load data.
 ```{r config, show=F, warning=F, message=F}
 
-source(here::here("0-config.R"))
+source(here::here("analysis/0-config.R"))
 
+############################
+# Wide event data
+############################
 df_violence <- read_rds(paste0(temp_data_path,"df_violence.rds"))
+df_all <- readRDS(paste0(final_data_path,"df_01B_all.rds"))
+df_mal <- readRDS(paste0(final_data_path,"df_01B_mal.rds"))
+df_pne <- readRDS(paste0(final_data_path,"df_01B_pne.rds"))
+df_dia <- readRDS(paste0(final_data_path,"df_01B_dia.rds"))
 
+############################
+# CSPS lat + lon
+############################
 csps_gps <- read_csv(paste0(temp_data_path,"csps_gps.csv"))
 
-#temp data from 01B
-date_data <- "2024-09-26"
-
-df_all <- read_rds(paste0(final_data_path,"df_all_",date_data,".rds"))
+############################
+# File 01B (final) data
+############################
+df_all <- readRDS(paste0(final_data_path,"df_01B_all.rds"))
 
 ```
 
 
 ### Prepare data. Summary tables for plotting.
-```{r}
-
+```{r aggregate-data}
+############################
+# Quick stat: total events
+# by year
+############################
 df_violence %>%
-  filter(year!=2023) %>%
+  filter(year %in% 2020:2022) %>%
   group_by(year) %>%
   summarise(n_events=n())
 
-df_total <- 
+############################
+# Quick stat: total visits
+# by CSPS (2020 - 2022)
+############################
+gps_03B_visits <- #df_total
   df_all %>%
   group_by(csps) %>%
   summarise(n_visit=sum(n_visit, na.rm=T)) %>%
   left_join(csps_gps)
 
-df_by_year <-
+gps_03B_visits_yr <- #df_by_year
   df_all %>%
   group_by(csps, visit_year) %>%
   mutate(visit_year = as.factor(visit_year)) %>%
@@ -53,98 +70,224 @@ df_by_year <-
 
 
 ### Make Shapefiles.
-```{r}
+```{r make-shp}
+##############################################
+# Load admin boundaries from HDX
+# (Humanitarian Data eXchange)
+# https://data.humdata.org/dataset/geoboundaries-admin-boundaries-for-burkina-faso
+# manuscript DOI: https://doi.org/10.1371/journal.pone.0231866
+##############################################
+shp_03B_adm0 <- 
+  st_read(dsn = paste0(raw_data_path, "geoBoundaries-BFA-ADM0-all/geoBoundaries-BFA-ADM0.shp"))  # country
 
-#BFA base layer
-bfa_shape <- st_read(bfa_shp_path) %>% dplyr::filter(ADM2_FR=="Kossi")
+shp_03B_adm1 <- 
+  st_read(dsn = paste0(raw_data_path, "geoBoundaries-BFA-ADM1-all/geoBoundaries-BFA-ADM1.shp"))  # region
 
-#Violent event points (2020-2022)
-viol_pts = 
+shp_03B_adm2 <- 
+  st_read(dsn = paste0(raw_data_path, "geoBoundaries-BFA-ADM2-all/geoBoundaries-BFA-ADM2.shp"))  # province
+
+shp_03B_adm3 <- 
+  st_read(dsn = paste0(raw_data_path, "geoBoundaries-BFA-ADM3-all/geoBoundaries-BFA-ADM3.shp"))  # commune
+
+############################
+# Create Kossi shp file
+############################
+shp_03B_kossi <- #bfa_shape
+  bfa_adm2 %>% 
+  dplyr::filter(grepl("Kossi",shapeName))
+
+############################
+# Create event data shp file
+############################
+# Overall (2020-2022)
+shp_03B_events <- #viol_pts
   df_violence %>% 
-  mutate(year_fac = as.factor(year)) |> 
-  st_as_sf(coords = c("longitude", "latitude"), crs = "EPSG:4326")
+  mutate(year_fac = as.factor(year)) %>%
+  st_as_sf(coords = c("longitude", "latitude"), 
+           crs = "EPSG:4326")
 
-#Violent event points (by year)
-viol_pts_2020 = 
-  df_violence %>% 
-  mutate(year_fac = as.factor(year)) %>% 
-  filter(year==2020) |> 
-  st_as_sf(coords = c("longitude", "latitude"), crs = "EPSG:4326")
+# 2020
+shp_03B_events_2020 <- # viol_pts_2020
+  shp_03B_events %>% 
+  dplyr::filter(year==2020)
 
-viol_pts_2021 = df_violence %>% 
-  mutate(year_fac = as.factor(year)) %>% 
-  filter(year==2021) |> 
-  st_as_sf(coords = c("longitude", "latitude"), crs = "EPSG:4326")
+# 2021
+shp_03B_events_2021 <- # viol_pts_2021
+  shp_03B_events %>% 
+  dplyr::filter(year==2021)
 
-viol_pts_2022 = df_violence %>% 
-  mutate(year_fac = as.factor(year)) %>% 
-  filter(year==2022) |> 
-  st_as_sf(coords = c("longitude", "latitude"), crs = "EPSG:4326")
+# 2022
+shp_03B_events_2022 <- # viol_pts_2022
+  shp_03B_events %>% 
+  dplyr::filter(year==2022)
 
-#CSPS visits per 1000 points (2020-2022)
-csps_pts <- 
-  df_total |>
-  st_as_sf(coords = c("csps_lon", "csps_lat"), crs = "EPSG:4326")
+############################
+# Create CSPS visits shp file
+# (adjusted to per 1000)
+############################
+# Overall (2020-2022)
+shp_03B_csps <- # csps_pts
+  gps_03B_visits %>%
+  st_as_sf(coords = c("csps_lon", "csps_lat"), 
+           crs = "EPSG:4326")
 
 #CSPS visits per 1000 points (by year)
-csps_pts_2020 <- 
-  df_by_year %>% 
-  filter(visit_year==2020) |>
-  st_as_sf(coords = c("csps_lon", "csps_lat"), crs = "EPSG:4326")
+shp_03B_csps_2020 <- # csps_pts_2020
+  gps_03B_visits_yr %>% 
+  dplyr::filter(visit_year == 2020) %>%
+  st_as_sf(coords = c("csps_lon", "csps_lat"), 
+           crs = "EPSG:4326")
 
-csps_pts_2021 <- 
-  df_by_year %>% 
-  filter(visit_year==2021) |>
-  st_as_sf(coords = c("csps_lon", "csps_lat"), crs = "EPSG:4326")
+shp_03B_csps_2021 <- # csps_pts_2021
+  gps_03B_visits_yr %>% 
+  dplyr::filter(visit_year == 2021) %>%
+  st_as_sf(coords = c("csps_lon", "csps_lat"), 
+           crs = "EPSG:4326")
 
-csps_pts_2022 <- 
-  df_by_year %>% 
-  filter(visit_year==2022) |>
-  st_as_sf(coords = c("csps_lon", "csps_lat"), crs = "EPSG:4326")
+shp_03B_csps_2022 <- # csps_pts_2022
+  gps_03B_visits_yr %>% 
+  dplyr::filter(visit_year == 2022) %>%
+  st_as_sf(coords = c("csps_lon", "csps_lat"), 
+           crs = "EPSG:4326")
 
 ```
 
+
 ### 3. Create maps.
+```{r make-maps-figs, warning=F}
+############################
+# Define panel labels
+############################
+map_labels <- c("A","B","C","D")
 
-```{r}
-
-panellabels <- c("A","B","C","D")
-
-panellabels_long <- c("A. 2020-2022, n=153 events",
+map_labels_long <- c("A. 2020-2022, n=153 events",
                  "B. 2020, n=26 events",
                  "C. 2021, n=42 events",
                  "D. 2022, n=85 events")
 
-bfa_map <- create_ggplot_map(viol_pts, csps_pts) #, panellabels[1])
-bfa_map_2020 <- create_ggplot_map(viol_pts_2020, csps_pts_2020) #, panellabels[2])
-bfa_map_2021 <- create_ggplot_map(viol_pts_2021, csps_pts_2021) #, panellabels[3])
-bfa_map_2022 <- create_ggplot_map(viol_pts_2022, csps_pts_2022) #, panellabels[4])
+############################
+# Create map panels
+# (See 0-functions.R for
+# helper function details.)
+############################
+# 2020
+map_03B_2020 <- 
+  bfa_map_helper(
+    shp_03B_events_2020,
+    shp_03B_csps_2020,
+    pt_size = 1.7) +
+  theme(legend.position = "none")
 
-fig_2 <- grid_arrange_shared_legend(bfa_map, bfa_map_2020, bfa_map_2021, bfa_map_2022)
+# 2021
+map_03B_2021 <- 
+  bfa_map_helper(
+    shp_03B_events_2021, 
+    shp_03B_csps_2021,
+    pt_size = 1.7) +
+  theme(legend.position = "none")
 
-fig_2_arranged <- ggarrange(bfa_map, #row 1
-                            #row 2
-                            ggarrange(bfa_map_2020, bfa_map_2021, bfa_map_2022, 
-                                      ncol = 3, labels = panellabels[2:4]),
-                            nrow=2, labels = panellabels[1])
+# 2022
+map_03B_2022 <- 
+  bfa_map_helper(
+    shp_03B_events_2022, 
+    shp_03B_csps_2022,
+    pt_size = 1.7) +
+  theme(legend.position = "none")
 
-ggsave(paste0(figure_path,"fig_2a_",Sys.Date(),".png"), 
-       plot = bfa_map, 
-       width = 6,
-       height = 6,
-       units = "in")
+# Overall (2020-2022)
+map_03B_all <- # bfa_map
+  bfa_map_helper(
+    shp_03B_events,
+    shp_03B_csps) +
+  annotate("polygon", # Nouna Town icon (y=12.733333, x=-3.866667)
+         x = c(-3.87, -3.85, -3.87, -3.89),
+         y = c(12.75, 12.73, 12.71, 12.73),
+         fill = NA, color = "#E69F00", linewidth = 1) +
+    annotate("text",                       # "Nouna Town" label
+             x = -3.22, y = 12.85, size = 3.2,
+             label = "Nouna Town",
+             fontface = "bold") +
+    annotate("segment",                    # arrow from label to map
+             x = -3.39, xend = -3.84,
+             y = 12.83, yend = 12.73,
+             arrow = arrow(length = unit(0.25, "cm"), type = "closed"),
+             linewidth = 0.5, 
+             color = "black")
+
+############################
+# Define BFA overview map
+############################
+map_03B_bfa <-
+  ggplot() +
+  geom_sf(data=
+              shp_03B_adm2 %>% 
+              mutate(isKossi = shapeName == "Kossi"),
+            aes(fill = isKossi),
+            lwd=0.5) +
+  coord_sf(crs = 4326) + 
+  scale_fill_manual(values = c("TRUE" = "#E69F00", 
+                               "FALSE" = "#fdf6eb"),
+                    guide = "none") +
+  annotate("text",                       # "Kossi Province" label
+           x = -4, y = 15, size = 3,
+           label = "Kossi Province",
+           fontface = "bold") +
+  annotate("segment",                    # arrow from label to map
+           x = -4.3, xend = -4,
+           y = 14.8, yend = 13.65,
+           arrow = arrow(length = unit(0.25, "cm"), type = "closed"),
+           linewidth = 0.3, 
+           color = "black") + 
+    theme_void()
+
+```
+
+
+```{r}
+############################
+# Join panels into figure
+# (See 0-functions.R for
+# helper function details.)
+############################
+fig_2_left_panel <-
+  map_03B_all +
+  theme(legend.position = "bottom") +
+  coord_sf(
+    xlim = c(-4.40, -3.00),   # extra room on the right
+    ylim = c(12.35, 14.10),   # extra room on top
+    crs = 4326
+  ) +
+  annotation_custom(
+    grob = ggplotGrob(map_03B_bfa),
+    xmin = -3.9, xmax = -3,    # longitude range for the inset
+    ymin = 13.5, ymax = 14.1     # latitude range for the inset
+  )
+
+fig_2_arranged <- 
+  ggarrange(fig_2_left_panel,
+            ggarrange(   # col 2
+              map_03B_2020, 
+              map_03B_2021, 
+              map_03B_2022,
+              nrow = 3,
+              labels = c("B. 2020 (n=26 events)",
+                         "C. 2021 (n=42 events)",
+                         "D. 2022 (n=85 events)")
+              ),
+            ncol=2,
+            labels = "A."
+            )
+
+```
+
+### Download Figure 2.
+```{r download}
 
 ggsave(paste0(figure_path,"fig_2_",Sys.Date(),".png"), 
-       plot = fig_2, 
-       width = 10,
-       height = 10,
+       plot = fig_2_arranged, 
+       width = 7*1.6,
+       height = 6*1.6,
        units = "in")
-
-# ggsave(paste0(figure_path,"fig_2_v2_",Sys.Date(),".png"), 
-#        plot = fig_2_arranged, 
-#        width = 8,
-#        height = 8,
-#        units = "in")
 
 ```
 

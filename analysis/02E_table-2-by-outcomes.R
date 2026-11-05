@@ -60,7 +60,7 @@ table_2ry_dx_html <-
     pred.labels = c("Intercept",
                     "Any event (Yes)",
                     "Ramadan (Yes)",
-                    "Rainfall (mm)" ),
+                    "Rainfall (cm)" ),
     
     dv.labels = c("Overall", 
                   "Malaria Visits", 
@@ -87,7 +87,7 @@ tab_model(
   pred.labels = c("Intercept",
                   "Any event (Yes)",
                   "Ramadan (Yes)",
-                  "Rainfall (mm)" ),
+                  "Rainfall (cm)" ),
   
   dv.labels = c("Overall", 
                 "Malaria Visits", 
