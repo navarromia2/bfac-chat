@@ -52,6 +52,49 @@ offset_helper <- function (df) {
 
 
 ####################################################
+# FUNCTION: new_exposure_vars_helper()
+# LOCATION: file 01B
+# Merge all data, create new exposure variables for
+# sensitivity analyses / robustness checks
+# input:  df  = df with outcome + covar data only
+# output: df + 1ry exposure + addt'l exposure vars
+####################################################
+new_exposure_vars_helper <- function (df) {
+  
+  return (
+    df %>%
+      left_join(events_01B_variables,
+                by = join_by(csps, 
+                             visit_year == year, 
+                             visit_month == month)) %>%
+      left_join(events_01B_prior,
+                by = join_by(csps, 
+                             visit_date_1molag == event_date)) %>%
+      relocate(event_any_prior, .after = "event_any") %>%
+      mutate(
+        across(c(starts_with("event_"), -event_min_dist, -event_max_dist) , 
+               ~ replace_na(.x, as.integer(0))),
+        event_any_cumu = 
+          ifelse(event_any + event_any_prior > 0, as.integer(1), as.integer(0)),
+        event_any_loc = 
+          factor(event_any_loc, 
+                 levels = 0:2,
+                 labels = c("None", 
+                            "Local (<=20 km)", 
+                            "Distant (>20 km)")),
+        event_any_vio = 
+          factor(event_any_vio, 
+                 levels = 0:2,
+                 labels = c("None",
+                            "Violent",
+                            "Non-violent")) ) %>%
+      relocate(event_any_cumu, .after = "event_any_vio")
+  )
+  
+}
+
+
+####################################################
 # FUNCTION: negbin_helper()
 # LOCATION: files 02A-02C
 # Create negative binomial regression models
@@ -63,7 +106,11 @@ negbin_helper <- function(df, exposure) {
   
   f <- 
     reformulate(
-      c(exposure, "ramadan", "r1h_now", "offset(log(offset_tot_csps_visits))"),
+      c(exposure,
+        "ramadan", 
+        "r1h_now",
+        "visit_year",
+        "offset(log(offset_tot_csps_visits))"),
       response = "n_visit" )
   
   glm.nb(f, link = "log", data = df)

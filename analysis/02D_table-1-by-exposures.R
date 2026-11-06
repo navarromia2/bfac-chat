@@ -26,19 +26,31 @@ df_dia <- readRDS(paste0(final_data_path,"df_01B_dia.rds"))
 # 1ry analysis: Overall
 m1_all_any <- negbin_helper(df_all, "event_any")
 
-# 2ry analysis: By diagnosis (any event)
-m1_mal_any <- negbin_helper(df_mal, "event_any")
-m1_pne_any <- negbin_helper(df_pne, "event_any")
-m1_dia_any <- negbin_helper(df_dia, "event_any")
-
 # 2ry analysis: Event proximity (added in R&R 1)
 m2_all_any_loc <- negbin_helper(df_all, "event_any_loc")
 
 # 3ry analysis: Event intensity (added in R&R 1)
 m3_all_any_vio <- negbin_helper(df_all, "event_any_vio")
 
+# 3ry analysis: Event cumulative (+ prior mo) (added in R&R 1)
+m3_all_any_cumu <- negbin_helper(df_all, "event_any_cumu")
 
+#################################
+# Look at thetas of ea. model.
+# A value of ~0.5 suggests
+# overdispersion and "justifies"
+# using negative binomial.
+#################################
+m1_all_any$theta      # 0.84
+m2_all_any_loc$theta  # 0.84
+m3_all_any_vio$theta  # 0.84
 
+# Evidence of strong overdispersion.
+
+#################################
+# Preview Table 1 (event 
+# occurrence/proximity/intensity)
+#################################
 ### 2A. Format results table. Download. (Disorder type)
 table_3ry_all_html <- 
   
@@ -46,6 +58,7 @@ table_3ry_all_html <-
     m1_all_any,
     m3_all_any_vio,
     m2_all_any_loc,
+    m3_all_any_cumu,
     
     show.loglik = T,
     emph.p      = F,
@@ -53,19 +66,26 @@ table_3ry_all_html <-
     string.est = "aIRR",
     string.ci = "95% CI",
     string.p = "p-value",
+    
+    rm.terms = c("(Intercept)"),
 
-    pred.labels = c("Intercept",
+    pred.labels = c(
+                    # "Intercept",
                     "Any event (Yes)",
                     "Ramadan (Yes)",
                     "Rainfall (cm)",
+                    "Year",
                     "Any event (Violent)",
+                    "Any event (Non-violent)",
                     "Any event (Local, <=20 km)",
-                    "Any event (Distant, >20 km)"
+                    "Any event (Distant, >20 km)",
+                    "Any event (Recent cumulative)"
                     ),
     
-    dv.labels = c("Event Occurrence", 
+    dv.labels = c("Event Occurrence",
                   "Event Intensity", 
-                  "Event Proximity" ) )
+                  "Event Proximity",
+                  "Event Cumulative") )
 
 table_3ry_all_html
 
@@ -73,6 +93,7 @@ tab_model(
   m1_all_any,
   m3_all_any_vio,
   m2_all_any_loc,
+  m3_all_any_cumu,
   
   show.loglik = T,
   emph.p      = F,
@@ -81,18 +102,25 @@ tab_model(
   string.ci = "95% CI",
   string.p = "p-value",
   
-  pred.labels = c("Intercept",
-                  "Any event (Yes)",
-                  "Ramadan (Yes)",
-                  "Rainfall (cm)",
-                  "Any event (Violent)",
-                  "Any event (Local, <=20 km)",
-                  "Any event (Distant, >20 km)"
+  rm.terms = c("(Intercept)"),
+  
+  pred.labels = c(
+    # "Intercept",
+    "Any event (Yes)",
+    "Ramadan (Yes)",
+    "Rainfall (cm)",
+    "Year",
+    "Any event (Violent)",
+    "Any event (Non-violent)",
+    "Any event (Local, <=20 km)",
+    "Any event (Distant, >20 km)",
+    "Any event (Recent cumulative)"
   ),
   
-  dv.labels = c("Event Occurrence", 
+  dv.labels = c("Event Occurrence",
                 "Event Intensity", 
-                "Event Proximity" ),
+                "Event Proximity",
+                "Event Cumulative"),
   
   file = paste0(table_path,"table-1-diff-exposures.doc") )
 

@@ -183,7 +183,8 @@ hist(vill_csps_gps$dist_csps, breaks = 28)
      - disorder_type  == "Political violence" or 
      - sub_event_type == "Violent demonstration")
 
-```{r create-vars}
+#### 3A. Transform dataset.
+```{r prep-data}
 #################################
 # Transform wide-to-long
 #################################
@@ -223,11 +224,11 @@ events_01B_variables <-
     
     # Binary indicators by violence type and proximity
     event_any_loc = ifelse(any(is_loc), as.integer(1), as.integer(2)),
+    event_any_vio = ifelse(any(is_vio), as.integer(1), as.integer(2)),
     event_any_pol = as.integer(any(is_pol)),
     event_any_dem = as.integer(any(is_dem)),
     event_any_str = as.integer(any(is_str)),
-    event_any_vio = as.integer(any(is_vio)),
-    event_any_loc_vio = as.integer(any(is_loc & is_vio)),
+    # event_any_loc_vio = (is_loc * is_vio),
     
     # Count indicators by violence type and proximity
     event_tot_fat = as.integer(sum(fatalities, na.rm = T)),
@@ -236,7 +237,7 @@ events_01B_variables <-
     event_tot_dem = sum(is_dem, na.rm = T),
     event_tot_str = sum(is_str, na.rm = T),
     event_tot_vio = sum(is_vio, na.rm = T),
-    event_tot_loc_vio = sum(is_loc & is_vio, na.rm = T),
+    # event_tot_loc_vio = sum(event_any_loc_vio, na.rm = T),
     event_min_dist = min(dist_km, na.rm = T),
     event_max_dist = max(dist_km, na.rm = T)
     ) %>% ungroup()
@@ -244,71 +245,50 @@ events_01B_variables <-
 events_01B_variables
 
 #################################
+# Create event_any_prior for
+# cumulative exposure variable
+#################################
+events_01B_prior <-
+  events_01B_variables %>%
+  mutate(event_date = make_date(year, month, 1)) %>%
+  dplyr::select(csps, event_date, event_any) %>%
+  rename(event_any_prior = event_any)
+
+events_01B_prior
+
+```
+
+```{r make-vars}
+#################################
 # Merge w/ outcome & covar data
 # (which includes non-event mos)
+# Create three new exposure vars
+# event_any_loc = proximity
+# event_any_vio = intensity
+# event_any_cumu = cumulative
+# (See 0-functions.R for helper
+# function)
 #################################
-# Overall
-df_01B_all <- 
-  df_01A_all %>%
-  left_join(events_01B_variables,
-            by = join_by(csps, 
-                         visit_year == year, 
-                         visit_month == month)) %>%
-  mutate(across(c(starts_with("event_"), -event_min_dist, -event_max_dist) , 
-                ~ replace_na(.x, as.integer(0))),
-         event_any_loc = factor(event_any_loc, levels = 0:2,
-                                labels = c("None", 
-                                           "Local (<=20 km)", 
-                                           "Distant (>20 km)")))
+outcome_dfs_list <- list(df_01A_all,
+                         df_01A_mal,
+                         df_01A_pne,
+                         df_01A_dia)
 
-# Malaria
-df_01B_mal <- 
-  df_01A_mal %>%
-  left_join(events_01B_variables,
-            by = join_by(csps, 
-                         visit_year == year, 
-                         visit_month == month)) %>%
-  mutate(across(c(starts_with("event_"), -event_min_dist, -event_max_dist) , 
-                ~ replace_na(.x, as.integer(0))),
-         event_any_loc = factor(event_any_loc, levels = 0:2,
-                                labels = c("None", 
-                                           "Local (<=20 km)", 
-                                           "Distant (>20 km)")))
+# Loop through all outcome dfs
+final_dfs_list   <- lapply(outcome_dfs_list,
+                           new_exposure_vars_helper)
 
-# Pneumonia
-df_01B_pne <- 
-  df_01A_pne %>%
-  left_join(events_01B_variables,
-            by = join_by(csps, 
-                         visit_year == year, 
-                         visit_month == month)) %>%
-  mutate(across(c(starts_with("event_"), -event_min_dist, -event_max_dist) , 
-                ~ replace_na(.x, as.integer(0))),
-         event_any_loc = factor(event_any_loc, levels = 0:2,
-                                labels = c("None", 
-                                           "Local (<=20 km)", 
-                                           "Distant (>20 km)")))
-
-# Diarrhea
-df_01B_dia <- 
-  df_01A_dia %>%
-  left_join(events_01B_variables,
-            by = join_by(csps, 
-                         visit_year == year, 
-                         visit_month == month)) %>%
-  mutate(across(c(starts_with("event_"), -event_min_dist, -event_max_dist) , 
-                ~ replace_na(.x, as.integer(0))),
-         event_any_loc = factor(event_any_loc, levels = 0:2,
-                                labels = c("None", 
-                                           "Local (<=20 km)", 
-                                           "Distant (>20 km)")))
+df_01B_all <- final_dfs_list[[1]]
+df_01B_mal <- final_dfs_list[[2]]
+df_01B_pne <- final_dfs_list[[3]]
+df_01B_dia <- final_dfs_list[[4]]
 
 ```
 
 ### 2C: Save data.
 ```{r save, warning=F, message=F}
 
-tail(df_01B_all)
+View(df_01B_all)
 
 write_rds(df_01B_all, paste0(final_data_path,"df_01B_all.rds"))
 write_rds(df_01B_mal, paste0(final_data_path,"df_01B_mal.rds"))

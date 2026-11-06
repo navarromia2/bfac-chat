@@ -379,16 +379,46 @@ dia_01A_mutated2 <-
 
 ```
 
+### 4. Create and merge time lagged (1-/2-mo) date variable.
+Updated November 4 2026: Date + 1/2 months. For robustness check.
+```{r time-fixed-effect}
+#################################
+# Create + merge months fixed fx
+# Note: we would have to restrict
+# analyses to Feb 2020 - Dec 2022
+# when using these lagged dates
+#################################
+all_01A_mutated4 <-
+  all_01A_mutated3 %>%
+  mutate(visit_date_1molag = visit_date %m-% months(1)) %>%
+  relocate(visit_date_1molag, .after = "visit_month")
+
+mal_01A_mutated4 <-
+  mal_01A_mutated3 %>%
+  mutate(visit_date_1molag = visit_date %m-% months(1)) %>%
+  relocate(visit_date_1molag, .after = "visit_month")
+
+pne_01A_mutated4 <-
+  pne_01A_mutated3 %>%
+  mutate(visit_date_1molag = visit_date %m-% months(1)) %>%
+  relocate(visit_date_1molag, .after = "visit_month")
+
+dia_01A_mutated4 <-
+  dia_01A_mutated3 %>%
+  mutate(visit_date_1molag = visit_date %m-% months(1)) %>%
+  relocate(visit_date_1molag, .after = "visit_month")
+
+```
 
 ### 5. Save data.
 ```{r save-data}
 
-write_csv(all_01A_mutated2, paste0(temp_data_path,"df_01A_all.csv"))
-write_csv(mal_01A_mutated2, paste0(temp_data_path,"df_01A_mal.csv"))
-write_csv(pne_01A_mutated2, paste0(temp_data_path,"df_01A_pne.csv"))
-write_csv(dia_01A_mutated2, paste0(temp_data_path,"df_01A_dia.csv"))
+write_csv(all_01A_mutated4, paste0(temp_data_path,"df_01A_all.csv"))
+write_csv(mal_01A_mutated4, paste0(temp_data_path,"df_01A_mal.csv"))
+write_csv(pne_01A_mutated4, paste0(temp_data_path,"df_01A_pne.csv"))
+write_csv(dia_01A_mutated4, paste0(temp_data_path,"df_01A_dia.csv"))
 
-View(all_01A_mutated2)
+View(all_01A_mutated4)
 
 ```
 
