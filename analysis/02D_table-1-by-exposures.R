@@ -41,9 +41,9 @@ m3_all_any_cumu <- negbin_helper(df_all, "event_any_cumu")
 # overdispersion and "justifies"
 # using negative binomial.
 #################################
-m1_all_any$theta      # 0.84
-m2_all_any_loc$theta  # 0.84
-m3_all_any_vio$theta  # 0.84
+m1_all_any$theta      # 0.20
+m2_all_any_loc$theta  # 0.20
+m3_all_any_vio$theta  # 0.20
 
 # Evidence of strong overdispersion.
 

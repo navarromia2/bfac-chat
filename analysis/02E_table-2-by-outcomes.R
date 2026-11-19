@@ -37,9 +37,23 @@ m2_all_any_loc <- negbin_helper(df_all, "event_any_loc")
 # 3ry analysis: Event intensity (added in R&R 1)
 m3_all_any_vio <- negbin_helper(df_all, "event_any_vio")
 
+#################################
+# Look at thetas of ea. model.
+# A value of ~0.5 suggests
+# overdispersion and "justifies"
+# using negative binomial.
+#################################
+m1_all_any$theta  # 0.20
+m1_mal_any$theta  # 0.20
+m1_pne_any$theta  # 0.19
+m1_dia_any$theta  # 0.20
 
+# Evidence of strong overdispersion.
 
-### 2A. Format results table. Download. (Disorder type)
+#################################
+# Preview Table 2 (by diagnosis)
+#################################
+### 2A. Format results table. Download. (Visit type)
 table_2ry_dx_html <- 
   
   tab_model(
