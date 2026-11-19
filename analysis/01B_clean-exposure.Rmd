@@ -147,6 +147,8 @@ events_01B_merged <-
 colnames(acled_01B_details)
 colnames(events_01B_merged)
 
+max(events_01B_merged[,6:49])
+
 ```
 
 
@@ -206,6 +208,8 @@ events_01B_long <-
     is_vio = (is_pol) | (sub_event_type %in% "Violent demonstration")
   )
 
+write_rds(events_01B_long, paste0(temp_data_path,"events_01B_long.Rds"))
+
 #################################
 # Aggregate to CSPS-month +
 # generate exposure variables
@@ -243,6 +247,8 @@ events_01B_variables <-
     ) %>% ungroup()
 
 events_01B_variables
+
+table(events_01B_variables$event_any_loc)
 
 #################################
 # Create event_any_prior for
@@ -288,7 +294,7 @@ df_01B_dia <- final_dfs_list[[4]]
 ### 2C: Save data.
 ```{r save, warning=F, message=F}
 
-View(df_01B_all)
+# View(df_01B_all)
 
 write_rds(df_01B_all, paste0(final_data_path,"df_01B_all.rds"))
 write_rds(df_01B_mal, paste0(final_data_path,"df_01B_mal.rds"))
