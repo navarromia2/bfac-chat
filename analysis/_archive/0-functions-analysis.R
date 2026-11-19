@@ -1,162 +1,17 @@
 ## 02. regression analyses
-create_collinear_cov <- function (df) {
+
+# Outdated -- we don't adjust for collinearity (?)
+collinear_helper <- function (df) {
   
-  df2 <- df %>% mutate(dryRamadan = case_when((wetSeason=="Dry" & isRamadan=="Yes") ~ "Dry season, Ramadan",
-                                              (wetSeason=="Dry" & isRamadan=="No")  ~ "Dry season, no Ramadan",
-                                              (wetSeason=="Wet" & isRamadan=="No")  ~ "Rainy season, no Ramadan",
-                                              .default = NA))
-  # print(unique(df2$wetSeason))
-  
-  df2$dryRamadan <- as.factor(df2$dryRamadan) %>% relevel(ref = "Dry season, no Ramadan")
+  df2 <- 
+    df %>%
+    mutate(rain_ramadan = case_when(ramadan == 1L ~ r1h_now * 1,
+                                  ramadan == 0L ~ r1h_now * 0,
+                                  .default      = NA))
   
   return(df2)
   
 }
-
-create_glmer_near <- function (df) {
-  m <- glmer(n_visit ~ 1 + near_violence + dryRamadan + 
-               (1 | csps) +
-               offset(log(offset_n_visit_tot_csps)), 
-             family = poisson(link = "log"), 
-             # REML = T, 
-             data = df)
-  return(m)
-}
-
-create_glmer_any <- function (df) {
-  m <- glmer(n_visit ~ 1 + any_violence + dryRamadan + 
-               (1 | csps) +
-               offset(log(offset_n_visit_tot_csps)), 
-             family = poisson(link = "log"), 
-             # REML = T, 
-             data = df)
-  return(m)
-}
-
-check_resid_dist <- function(m) { return(hist(summary(m)$resid)) }
-
-create_pois_near <- function (df) {
-  
-  m <- glm(n_visit ~ near_violence + dryRamadan, 
-           offset = log(offset_n_visit_tot_csps), 
-           family = poisson(link = "log"), 
-           data = df)
-  
-  return(m)
-}
-
-create_pois_any <- function (df) {
-  m <- glm(n_visit ~ any_violence + dryRamadan, 
-           offset = log(offset_n_visit_tot_csps), 
-           family = poisson(link = "log"), 
-           data = df)
-  
-  return(m)
-}
-
-create_nb_any_RR <- function (df) {
-  m <- glm.nb(n_visit ~ any_violence + 
-                isRamadan + r1h_now + 
-                n_near_csps + n_fat_near_csps +
-                offset(log(offset_n_visit_tot_csps)), 
-              link = "log", 
-              data = df)
-  
-  return(m)
-}
-
-create_nb_near_RR <- function (df) {
-  m <- glm.nb(n_visit ~ near_violence + 
-                isRamadan + r1h_now + 
-                n_near_csps + n_fat_near_csps +
-                offset(log(offset_n_visit_tot_csps)), 
-              link = "log", 
-              data = df)
-  
-  return(m)
-}
-
-create_pois_cont <- function (df) {
-  m <- glm(n_visit ~ min_dist_to_viol + dryRamadan, 
-           offset = log(offset_n_visit_tot_csps), 
-           family = poisson(link = "log"), 
-           data = df)
-  
-  return(m)
-}
-
-create_table_1 <- function (create_doc=T) {
-  
-  if (create_doc) {
-    
-    fulltab_any <- tab_model(m1_pois_any,m2_mal_pois_any,m2_pne_pois_any,m2_dia_pois_any,
-                             show.loglik=T,string.est = "IRR",string.ci = "95% CI",
-                             pred.labels = c("Intercept",
-                                             "Violence: Yes",
-                                             "Season: Dry, Ramadan: Yes",
-                                             "Season: Rainy, Ramadan: No"),
-                             dv.labels = c("Total Visits", 
-                                           "Malaria Visits", 
-                                           "Pneumonia Visits", 
-                                           "Diarrhea Visits"),
-                             file = paste0(table_path,"table-1-pois.doc"))
-    
-  } else {
-    
-    fulltab_any <- tab_model(m1_pois_any,m2_mal_pois_any,m2_pne_pois_any,m2_dia_pois_any,
-                             show.loglik=T,string.est = "IRR",string.ci = "95% CI",
-                             pred.labels = c("Intercept",
-                                             "Violence: Yes",
-                                             "Season: Dry, Ramadan: Yes",
-                                             "Season: Rainy, Ramadan: No"),
-                             dv.labels = c("Total Visits", 
-                                           "Malaria Visits", 
-                                           "Pneumonia Visits", 
-                                           "Diarrhea Visits"))
-    
-  }
-  
-  return(fulltab_any)
-  
-}
-
-create_table_2 <- function (create_doc=T) {
-  
-  if (create_doc) {
-    
-    fulltab_near <- tab_model(m1_pois_near,m2_mal_pois_near,m2_pne_pois_near,m2_dia_pois_near,
-                              show.loglik=T,string.est = "IRR",string.ci = "95% CI",
-                              pred.labels = c("Intercept",
-                                              "Violence: local (<=20 km)",
-                                              "Violence: distant (>20 km)",
-                                              "Season: Dry, Ramadan: Yes",
-                                              "Season: Rainy, Ramadan: No"),
-                              dv.labels = c("Total Visits", 
-                                            "Malaria Visits", 
-                                            "Pneumonia Visits", 
-                                            "Diarrhea Visits"),
-                              file = paste0(table_path,"table-2-pois.doc"))
-    
-  } else {
-    
-    fulltab_near <- tab_model(m1_pois_near,m2_mal_pois_near,m2_pne_pois_near,m2_dia_pois_near,
-                              show.loglik=T,string.est = "IRR",string.ci = "95% CI",
-                              pred.labels = c("Intercept",
-                                              "Violence: local (<=20 km)",
-                                              "Violence: distant (>20 km)",
-                                              "Season: Dry, Ramadan: Yes",
-                                              "Season: Rainy, Ramadan: No"),
-                              dv.labels = c("Total Visits", 
-                                            "Malaria Visits", 
-                                            "Pneumonia Visits", 
-                                            "Diarrhea Visits"))
-    
-  }
-  
-  return(fulltab_near)
-  
-}
-
 
 
 ## 03. figures
@@ -222,10 +77,24 @@ create_ggplot_map = function (viol_shp, csps_shp, title="") {
   
   tempgg <- 
     ggplot() +
-    geom_sf(data=bfa_shape,lwd=0.5) +
+    geom_sf(data=bfa_shape,        # Kossi province 
+            lwd=0.5) +
+    
     coord_sf(crs = 4326) +
-    geom_sf(data=viol_shp, fill="red3", size=3, pch=21) +
-    geom_sf(data=csps_shp, aes(fill=n_visit), size=3, pch=22, size=1) +
+    
+    geom_sf(data=viol_shp,         # Event 
+            aes(shape = "Event"),
+            fill="red3", size=3) +
+    
+    geom_sf(data=csps_shp,         # CSPS
+            aes(shape = "CSPS", fill=n_visit), 
+            size=3) +
+    
+    scale_shape_manual(
+      name = NULL,
+      values = c("Event" = 21, "CSPS" = 24)
+    ) +
+    
     scale_fill_viridis(
       name = "Total CSPS Visits",
       direction = 1,
@@ -233,7 +102,7 @@ create_ggplot_map = function (viol_shp, csps_shp, title="") {
       #,
       # breaks = my_breaks,
       # labels = my_breaks
-      ) +
+    ) +
     labs(x="",y="") +
     theme(
       panel.grid.major = element_blank(),

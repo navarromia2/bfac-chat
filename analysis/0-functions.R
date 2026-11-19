@@ -35,16 +35,19 @@ w2l_helper <- function (wide_df) {
 ####################################################
 # FUNCTION: offset_helper()
 # LOCATION: file 01A
-# Merge offset var + create adjusted outcome var
+# Merge offset var + create adj counts
 # input:  df  = df without offset var
 # output: df2 = df with offset and adj outcome var
 ####################################################
 offset_helper <- function (df) {
   
   df2 <- df %>% 
-    left_join(visits_01A_by_csps, 
-              by=join_by(csps==csps)) %>%
-    mutate(n_visit_per_1000 = n_visit * 1000 / offset_tot_csps_visits)
+    left_join(vill_01A_filled, 
+              by = join_by("csps", 
+                           "visit_year"  == "census_year",
+                           "visit_month" == "census_month"
+                         )) %>%
+    mutate(n_visit_per_1000 = n_visit * 1000 / offset_n) 
     
   return(df2)
   
@@ -108,9 +111,9 @@ negbin_helper <- function(df, exposure) {
     reformulate(
       c(exposure,
         "ramadan", 
-        "r1h_now",
+        "r1h",
         "visit_year",
-        "offset(log(offset_tot_csps_visits))"),
+        "offset(log(offset_n))"),
       response = "n_visit" )
   
   glm.nb(f, link = "log", data = df)
