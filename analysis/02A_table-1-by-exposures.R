@@ -1,11 +1,12 @@
-# 02D. Comparative table of results overall, by intensity, and by proximity
-
-# Main findings from this table:
-# 1. Event occurrence, intensity, and proximity all had statistically significant associations with the outcome.
-# 2. Events >20 km from CSPS had the weakest association with the outcome.
-# 3. Event intensity and proximity had similar magnitudes of association with the outcome, 
-#   with event intensity having a slightly greater effect estimate.
+##############################################
+# 02A. Comparative table of results by 
+# event occurrence, intensity, & proximity
+##############################################
  
+
+############################
+# Configure workspace
+############################
 source(here::here("analysis/0-config.R"))
 
 ############################
@@ -122,5 +123,6 @@ tab_model(
                 "Event Proximity",
                 "Event Cumulative"),
   
-  file = paste0(table_path,"table-1-diff-exposures.doc") )
+  file = paste0(table_path,"table-1-diff-exposures.doc") 
+  )
 

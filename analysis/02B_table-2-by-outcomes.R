@@ -1,11 +1,12 @@
-# 02D. Comparative table of results overall, by intensity, and by proximity
+##############################################
+# 02B. Comparative table of results by 
+# overall & diagnosis-specific CSPS visits
+##############################################
 
-# Main findings from this table:
-# 1. Event occurrence, intensity, and proximity all had statistically significant associations with the outcome.
-# 2. Events >20 km from CSPS had the weakest association with the outcome.
-# 3. Event intensity and proximity had similar magnitudes of association with the outcome, 
-#   with event intensity having a slightly greater effect estimate.
 
+############################
+# Configure workspace
+############################
 source(here::here("analysis/0-config.R"))
 
 ############################
@@ -114,4 +115,5 @@ tab_model(
                 "Pneumonia Visits",
                 "Diarrhea Visits"),
   
-  file = paste0(table_path,"table-2-diff-outcomes.doc") )
+  file = paste0(table_path,"table-2-diff-outcomes.doc") 
+  )
