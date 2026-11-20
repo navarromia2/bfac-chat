@@ -93,7 +93,7 @@ shp_03B_adm3 <-
 # Create Kossi shp file
 ############################
 shp_03B_kossi <- #bfa_shape
-  bfa_adm2 %>% 
+  shp_03B_adm2 %>% 
   dplyr::filter(grepl("Kossi",shapeName))
 
 ############################
@@ -288,6 +288,10 @@ ggsave(paste0(figure_path,"fig_2_",Sys.Date(),".png"),
        width = 7*1.6,
        height = 6*1.6,
        units = "in")
+
+#Download data for supplement
+write_csv(gps_03B_visits_yr,
+          file = paste0(final_data_path,"fig-2-data.csv"))
 
 ```
 
