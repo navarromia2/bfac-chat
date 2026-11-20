@@ -158,7 +158,7 @@ fig_1_ggplot <-
     fill = "grey70", 
     alpha = 0.4
   ) +
-  geom_line(linewidth = 0.6) +
+  geom_line(linewidth = 1) +
   facet_wrap(~ variable, ncol = 1, 
              scales = "free_y", 
              strip.position = "left") +
@@ -197,6 +197,10 @@ ggsave(
    height = 11,
    units  = "in",
    dpi    = 300)
+
+#Save data for supplement
+write_csv(df_monthly_long,
+          file = paste0(final_data_path,"fig-1-data.csv"))
 
 ```
 
