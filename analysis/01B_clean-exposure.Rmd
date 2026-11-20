@@ -181,9 +181,7 @@ hist(vill_csps_gps$dist_csps, breaks = 28)
 - 3ry: [int] number of fatalities                    by CSPS-month
 - 3ry: [bin] any political viol, demo, strategic dev by CSPS-month
 - 3ry: [bin] any non-/violent events                 by CSPS-month
-    - violent if 
-     - disorder_type  == "Political violence" or 
-     - sub_event_type == "Violent demonstration")
+    - violent if disorder_type  == "Political violence"
 
 #### 3A. Transform dataset.
 ```{r prep-data}
@@ -205,7 +203,7 @@ events_01B_long <-
     is_pol = grepl("Political violence",     disorder_type, fixed = TRUE),
     is_dem = grepl("Demonstrations",         disorder_type, fixed = TRUE),
     is_str = grepl("Strategic developments", disorder_type, fixed = TRUE),
-    is_vio = (is_pol) | (sub_event_type %in% "Violent demonstration")
+    is_vio = (is_pol)
   )
 
 write_rds(events_01B_long, paste0(temp_data_path,"events_01B_long.Rds"))
@@ -294,7 +292,7 @@ df_01B_dia <- final_dfs_list[[4]]
 ### 2C: Save data.
 ```{r save, warning=F, message=F}
 
-# View(df_01B_all)
+View(df_01B_all)
 
 write_rds(df_01B_all, paste0(final_data_path,"df_01B_all.rds"))
 write_rds(df_01B_mal, paste0(final_data_path,"df_01B_mal.rds"))
