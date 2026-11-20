@@ -14,68 +14,189 @@ knitr::opts_chunk$set(echo = TRUE)
 ### 0. Configure environment. Load data.
 ```{r config, show=F, warning=F, message=F}
 
-source(here::here("0-config.R"))
+source(here::here("analysis/0-config.R"))
 
-#temp data from 01B
-date_data <- "2024-09-26"
+############################
+# Wide event data
+############################
+df_violence <- read_rds(paste0(temp_data_path,"df_violence.rds"))
 
-df_all <- read_csv(paste0(final_data_path,"df_all_",date_data,".csv"))
-df_mal <- read_csv(paste0(final_data_path,"df_mal_",date_data,".csv"))
-df_pne <- read_csv(paste0(final_data_path,"df_pne_",date_data,".csv"))
-df_dia <- read_csv(paste0(final_data_path,"df_dia_",date_data,".csv"))
+############################
+# CSPS visit data
+############################
+df_all <- readRDS(paste0(final_data_path,"df_01B_all.rds"))
+df_mal <- readRDS(paste0(final_data_path,"df_01B_mal.rds"))
+df_pne <- readRDS(paste0(final_data_path,"df_01B_pne.rds"))
+df_dia <- readRDS(paste0(final_data_path,"df_01B_dia.rds"))
 
-head(df_all)
+colnames(df_all)
 
 ```
 
 ### Figure 1. Temporal trends in exposure + outcome
 ```{r make-plot-items, warning=F, message=F}
 
-line_tot <- create_jitter_ggplot(df_all, "A. Overall", xlab2 = "",
-                                 ymaxval2=df_all$n_visit_per_1000) 
-line_mal <- create_jitter_ggplot(df_mal, "B. Malaria", xlab2 = "", ylab2 = "",
-                                 ymaxval2=df_mal$n_visit_per_1000)
-line_pne <- create_jitter_ggplot(df_pne, "C. Pneumonia",
-                                 ymaxval2=df_pne$n_visit_per_1000)
-line_dia <- create_jitter_ggplot(df_dia, "D. Diarrhea", ylab2 = "",
-                                 ymaxval2=df_dia$n_visit_per_1000)
+ramadan_dates <- 
+  data.frame(
+    start = c(as.Date("2020-04-24"),
+              as.Date("2021-04-13"),
+              as.Date("2022-04-02")
+              ),
+    end   = c(as.Date("2020-05-23"),
+              as.Date("2021-05-12"),
+              as.Date("2022-05-01")
+              )
+  )
+
+violence_counts <-
+  df_violence %>% 
+  mutate(event_date = floor_date(date, unit = "month")) %>%
+  group_by(event_date) %>%
+  summarise(
+    events = n()
+  )
+
+df_monthly_all <- 
+  df_all %>%
+  group_by(visit_date) %>%
+  summarise(
+    rainfall_cm         = mean(r1h, na.rm = T),
+    visits_per_1000_all = mean(n_visit_per_1000, na.rm = T)
+  ) %>%
+  ungroup() %>%
+  left_join(violence_counts,
+            by = join_by("visit_date" == "event_date") )
+
+df_monthly_mal <- 
+  df_mal %>%
+  group_by(visit_date) %>%
+  summarise(
+    visits_per_1000_mal = mean(n_visit_per_1000, na.rm = T)
+  ) %>%
+  ungroup()
+
+df_monthly_pne <- 
+  df_pne %>%
+  group_by(visit_date) %>%
+  summarise(
+    visits_per_1000_pne = mean(n_visit_per_1000, na.rm = T)
+  ) %>%
+  ungroup()
+
+df_monthly_dia <- 
+  df_dia %>%
+  group_by(visit_date) %>%
+  summarise(
+    visits_per_1000_dia = mean(n_visit_per_1000, na.rm = T)
+    ) %>%
+  ungroup()
+
+df_monthly_merged <-
+  df_monthly_all %>%
+  left_join(df_monthly_mal, by = "visit_date") %>%
+  left_join(df_monthly_pne, by = "visit_date") %>%
+  left_join(df_monthly_dia, by = "visit_date") %>%
+  mutate(visits_per_100K_all = visits_per_1000_all / 100,
+         visits_per_100K_mal = visits_per_1000_mal / 100,
+         visits_per_100K_pne = visits_per_1000_pne / 100,
+         visits_per_100K_dia = visits_per_1000_dia / 100) %>%
+  dplyr::select(visit_date, 
+                rainfall_cm, 
+                events,
+                visits_per_100K_all,
+                visits_per_100K_mal,
+                visits_per_100K_pne,
+                visits_per_100K_dia)
+
+df_monthly_long <-
+  df_monthly_merged %>%
+  pivot_longer(
+    cols = colnames(df_monthly_merged)[2:7], 
+    names_to = "variable", 
+    values_to = "value") %>%
+  mutate(
+    variable = factor(
+      variable,
+      levels = c("rainfall_cm", 
+                 "events", 
+                 "visits_per_100K_all",
+                 "visits_per_100K_mal",
+                 "visits_per_100K_pne",
+                 "visits_per_100K_dia"),
+    labels = c("Rainfall (cm)", 
+               "Total events",
+               "Total visits (per 100K)", 
+               "Malaria visits (per 100K)", 
+               "Pneumonia visits (per 100K)", 
+               "Diarrhea visits (per 100K)" )
+  )) %>%
+  mutate(value = if_else(is.na(value), 0, value))
+
+df_monthly_long
 
 ```
 
-```{r quickplots, warning=F, message=F}
 
-plot(line_tot)
-plot(line_mal)
-plot(line_pne)
-plot(line_dia)
+```{r}
+
+date_range <- c(
+  min(df_monthly_long$visit_date),
+  max(df_monthly_long$visit_date) + 30 )
+
+levels(df_monthly_long$variable)
+
+fig_1_ggplot <-
+  ggplot(df_monthly_long, 
+       aes(visit_date, value, color = variable)) +
+  geom_rect(
+    data = ramadan_dates,
+    aes(xmin = start, 
+        xmax = end, 
+        ymin = -Inf, 
+        ymax = Inf),
+    inherit.aes = F, 
+    fill = "grey70", 
+    alpha = 0.4
+  ) +
+  geom_line(linewidth = 0.6) +
+  facet_wrap(~ variable, ncol = 1, 
+             scales = "free_y", 
+             strip.position = "left") +
+  scale_x_date(date_breaks = "6 months", 
+               date_labels = "%b %Y") +
+  scale_color_manual(
+    values = c(
+  "Rainfall (cm)"               = "#0082B2",
+  "Total events"                = "#D55E00",  
+  "Total visits (per 100K)"     = mako(5)[2],  
+  "Malaria visits (per 100K)"   = mako(5)[2],  
+  "Pneumonia visits (per 100K)" = mako(5)[2],  
+  "Diarrhea visits (per 100K)"  = mako(5)[2] ), 
+  guide = "none"
+  ) +
+  coord_cartesian(xlim = date_range) +
+  labs(x = NULL, 
+       y = NULL) +
+  theme_minimal(base_size = 12) +
+  theme(strip.placement = "outside",
+        strip.text.y.left = element_text(angle = 90),
+        panel.grid.minor = element_blank())
+
+fig_1_ggplot
 
 ```
 
-```{r cowplot, warning=F, message=F}
 
-cowplot::plot_grid( line_tot + theme(legend.position="none"),
-                    line_mal + theme(legend.position="none"),
-                    line_pne + theme(legend.position="none"),
-                    line_dia + theme(legend.position="none"),
-                    align = 'vh',
-                    nrow = 2)
-
-```
-
-```{r gridarrange, warning=F, message=F}
-
-fig_1 <- grid_arrange_shared_legend(line_tot, line_mal, line_pne, line_dia)
-fig_1
-
-```
 
 ```{r save}
 
-ggsave(paste0(figure_path,"fig_1_",Sys.Date(),".png"), 
-       plot = fig_1, 
-       width = 7,
-       height = 8,
-       units = "in")
+ggsave(
+  paste0(figure_path,"fig_1_",Sys.Date(),".png"), 
+   plot   = fig_1_ggplot, 
+   width  = 9,
+   height = 11,
+   units  = "in",
+   dpi    = 300)
 
 ```
 
