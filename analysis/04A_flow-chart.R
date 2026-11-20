@@ -58,13 +58,19 @@ visit_04A_labelled <-
                              diagnosis__21 == 1 ~ 3, #diarrhea
                              .default = 0)) 
 
+View(visit_04A_labelled)
+unique(visit_04A_labelled$csps_name)
+
 #################################
 # Merge CSPS and village dem data
 #################################
 visit_04A_merged <- 
   visit_04A_labelled %>%
-  left_join(vill_01A_pop, by=join_by(village==village)) %>%
-  mutate(inv_wt_vill_pop = 1/n_census) # visit wt by village pop size
+  left_join(vill_01A_pop, 
+            by=join_by(commune,
+                         visit_year == census_year, 
+                         visit_month == census_month)
+            )
 
 #################################
 # Apply ineligibility and 
@@ -77,13 +83,14 @@ visit_04A_eligible <-
                          as.Date("2020-02-01"), 
                          as.Date("2022-12-31")))  #too early/late
 
-nrow(visit_04A_eligible) #N = 1,425,552 eligible
-  
+nrow(visit_04A_eligible) #N = 201,856 eligible
+View(visit_04A_eligible)
+
 visit_04A_analytic <-
   visit_04A_eligible %>%
   mutate(csps = if_else(csps<0, NA, csps)) %>%
-  mutate(village = if_else(village<0, NA, village)) %>%
-  mutate(village = if_else(village>990, 9999, village)) %>%
+  mutate(village = if_else(`village.x`<0, NA, `village.x`)) %>%
+  mutate(village = if_else(`village.x`>990, 9999, `village.x`)) %>%
   dplyr::filter(!is.na(csps_name)) %>%
   dplyr::filter(!is.na(village)) %>%
   dplyr::filter(village!=9999)
@@ -95,22 +102,24 @@ visit_04A_analytic <-
 #################################
 length(unique(visit_04A_merged$childid))   # N = 8166 pts in full sample
 length(unique(visit_04A_eligible$childid)) # N = 8138 pts in eligible sample
-length(unique(visit_04A_analytic$childid)) # N = 6890 pts in analytic sample
+length(unique(visit_04A_analytic$childid)) # N = 6892 pts in analytic sample
 
 
 #################################
 # Generate counts for flow chart
 # (encounter)
 #################################
-nrow(visit_04A_analytic) #N = 1,397,369 eligible
+nrow(visit_04A_merged)   # N = 232,095 full sample
+nrow(visit_04A_eligible) # N = 201,856 eligible
+nrow(visit_04A_analytic) # N = 173,788 included
 
 
-# N = 26,956
+# N = 26,956 outside of Nouna
 nrow(visit_04A_merged %>% 
        dplyr::filter(grepl("Outside Nouna",csps_name))
      )
 
-# N = 24,477
+# N = 3,281 outside of study period
 nrow(visit_04A_merged %>% 
        dplyr::filter(!between(starttime, 
                               as.Date("2020-02-01"), 
@@ -120,23 +129,31 @@ nrow(visit_04A_merged %>%
 # N = 19 missing CSPS ids
 nrow(visit_04A_eligible %>%
        mutate(csps = if_else(csps<0, NA, csps)) %>%
-       mutate(village = if_else(village<0, NA, village)) %>%
+       mutate(village = if_else(`village.x`<0, NA, `village.x`)) %>%
+       mutate(village = if_else(`village.x`>990, 9999, `village.x`)) %>%
        dplyr::filter(is.na(csps_name))
+       # dplyr::filter(!is.na(village)) %>%
+       # dplyr::filter(village!=9999)
 )
 
 
-# N = 134 missing village ids
+# N = 19 missing village ids
 nrow(visit_04A_eligible %>%
        mutate(csps = if_else(csps<0, NA, csps)) %>%
-       mutate(village = if_else(village<0, NA, village)) %>%
+       mutate(village = if_else(`village.x`<0, NA, `village.x`)) %>%
+       mutate(village = if_else(`village.x`>990, 9999, `village.x`)) %>%
+       # dplyr::filter(!is.na(csps_name)) %>%
        dplyr::filter(is.na(village))
+       # dplyr::filter(village!=9999)
 )
 
 # N = 28,049 "other" village ids
 nrow(visit_04A_eligible %>%
        mutate(csps = if_else(csps<0, NA, csps)) %>%
-       mutate(village = if_else(village<0, NA, village)) %>%
-       mutate(village = if_else(village>990, 9999, village)) %>%
+       mutate(village = if_else(`village.x`<0, NA, `village.x`)) %>%
+       mutate(village = if_else(`village.x`>990, 9999, `village.x`)) %>%
+       # dplyr::filter(!is.na(csps_name)) %>%
+       # dplyr::filter(!is.na(village)) %>%
        dplyr::filter(village==9999)
 )
 

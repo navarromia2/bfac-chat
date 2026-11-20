@@ -18,16 +18,14 @@ source(here::here("analysis/0-config.R"))
 # CSPS surveillance data
 # encounter level
 ############################
-visit_01A_filtered <- 
-  readRDS(paste0(temp_data_path,"visit_01A_filtered.Rds"))
-
+visit_01A_analytic <- 
+  readRDS(paste0(temp_data_path,"visit_01A_analytic.Rds"))
 
 ############################
 # ACLED event data
 ############################
 events_01B_long <- 
   readRDS(paste0(temp_data_path,"events_01B_long.Rds"))
-
 
 ############################
 # File 01B data
@@ -41,24 +39,35 @@ df_dia <- readRDS(paste0(final_data_path,"df_01B_dia.rds"))
 
 
 ### 1A. Summary statistics -- patient level
-- Age group
+- Age
 - Sex
 - Refugee status
 
 ```{r}
 
-summary(visit_01A_filtered$enteredageinmonths[visit_01A_filtered$enteredageinmonths >= 0])
-median(visit_01A_filtered$enteredageinmonths[visit_01A_filtered$enteredageinmonths >= 0], na.rm=T)
-IQR(visit_01A_filtered$enteredageinmonths[visit_01A_filtered$enteredageinmonths >= 0], na.rm=T)
+# Age
+visit_01A_analytic %>%
+  summarise(
+    n=n(),
+    age_median = median(enteredageinmonths, na.rm = T),
+    age_IQR    = IQR(enteredageinmonths, na.rm = T)
+    )
 
-table(visit_01A_filtered$childsex)
-806364/(806364+643646)
-643646/(806364+643646)
+# Sex
+visit_01A_analytic %>%
+  group_by(childsex) %>%
+  summarise(
+    n = n(),
+    perc = 100*n()/nrow(visit_01A_analytic)
+    )
 
-table(visit_01A_filtered$refugee)
-10474/(10474+1243258+196278)
-1243258/(10474+1243258+196278)
-196278/(10474+1243258+196278)
+# Refugee status
+visit_01A_analytic %>%
+  group_by(refugee) %>%
+  summarise(
+    n = n(),
+    perc = 100*n()/nrow(visit_01A_analytic)
+    )
 
 ```
 
@@ -70,61 +79,30 @@ table(visit_01A_filtered$refugee)
 
 ```{r}
 
-events_04_temp <-
-  events_01B_long %>%
-  group_by(csps) %>%
+# Events N, distance
+events_01B_long %>%
   summarise(
-    # Binary indicators by violence type and proximity
-    event_any_loc = ifelse(any(is_loc), as.integer(1), as.integer(2)),
-    event_any_vio = ifelse(any(is_vio), as.integer(1), as.integer(2)),
-    # event_any_loc_vio = (is_loc * is_vio),
-    
-    # Count indicators by violence type and proximity
-    # event_tot_fat = as.integer(sum(fatalities, na.rm = T)),
-    event_tot_loc = sum(is_loc==1, na.rm = T),
-    event_tot_dist = sum(is_loc==0, na.rm = T),
-    event_tot_vio = sum(is_vio==1, na.rm = T),
-    event_tot_nonvio = sum(is_vio==0, na.rm = T),
-    # event_tot_loc_vio = sum(event_any_loc_vio, na.rm = T),
-    event_min_dist = min(dist_km, na.rm = T),
-    event_max_dist = max(dist_km, na.rm = T),
-    event_med_dist = median(dist_km, na.rm = T)
-    ) %>% 
-  ungroup() %>%
+    n           = n_distinct(id_event),
+    dist_median = median(dist_km, na.rm=T),
+    dist_IQR    = IQR(dist_km, na.rm=T),
+    )
+
+# Event intensity
+events_01B_long %>%
+  group_by(is_vio) %>%
   summarise(
-    median_loc = median(event_tot_loc, na.rm=T),
-    iqr_loc = IQR(event_tot_loc, na.rm=T),
-    median_dist = median(event_tot_dist, na.rm=T),
-    iqr_dist = IQR(event_tot_dist, na.rm=T),
-
-    median_vio = median(event_tot_vio, na.rm=T),
-    iqr_vio = IQR(event_tot_vio, na.rm=T),
-    median_nonvio = median(event_tot_nonvio, na.rm=T),
-    iqr_nonvio = IQR(event_tot_nonvio, na.rm=T),
-
-    median_distance = median(event_med_dist, na.rm = T),
-    iqr_distance = IQR(event_med_dist, na.rm = T)
+    n = n_distinct(id_event),
+    perc = n_distinct(id_event) / 167
   )
 
-events_04_temp
+# Event year
+events_01B_long %>%
+  group_by(year) %>%
+  summarise(
+    n = n_distinct(id_event),
+    perc = n_distinct(id_event) / 167
+  )
 
-as.data.frame(
-  table(events_01B_long$csps,
-      events_01B_long$is_loc)
-) %>%
-  group_by(Var2) %>%
-  summarise(median = median(Freq))
-  
-table(events_01B_long$is_loc)
-1188/7348 #local
-6160/7348 #distant
-
-length(unique(events_01B_long$id_event))
-167*44
-
-1188/44
-
-27/167
 ```
 
 
@@ -136,32 +114,43 @@ length(unique(events_01B_long$id_event))
 
 ```{r}
 
-table(visit_01A_filtered$dx_type)
-(399579+621286+349365+79780)
-621286/(399579+621286+349365+79780) # 1 = malaria
-349365/(399579+621286+349365+79780) # 2 = pneumonia
-79780/(399579+621286+349365+79780)  # 3 = diarrhea
-399579/(399579+621286+349365+79780) # 0 = none of the above
-
 # Overall
-summary(df_all$n_visit_per_1000)
-median(df_all$n_visit_per_1000, na.rm=T)
-IQR(df_all$n_visit_per_1000, na.rm=T)
+visit_01A_analytic %>%
+  group_by(csps) %>%
+  summarise(
+    n=n()
+  ) %>%
+  ungroup() %>%
+  summarise(
+    visit_median = median(n, na.rm=T),
+    visit_IQR    = IQR(n, na.rm=T)
+  )
 
-# Malaria
-summary(df_mal$n_visit_per_1000)
-median(df_mal$n_visit_per_1000, na.rm=T)
-IQR(df_mal$n_visit_per_1000, na.rm=T)
+# By diagnosis
+visit_01A_analytic %>%
+  group_by(csps, dx_type) %>%
+  summarise(
+    n=n()
+  ) %>%
+  ungroup() %>%
+  group_by(dx_type) %>%
+  summarise(
+    visit_median = median(n, na.rm=T),
+    visit_IQR    = IQR(n, na.rm=T)
+  )
 
-# Pneumonia
-summary(df_pne$n_visit_per_1000)
-median(df_pne$n_visit_per_1000, na.rm=T)
-IQR(df_pne$n_visit_per_1000, na.rm=T)
-
-# Diarrhea
-summary(df_dia$n_visit_per_1000)
-median(df_dia$n_visit_per_1000, na.rm=T)
-IQR(df_dia$n_visit_per_1000, na.rm=T)
+# By year
+visit_01A_analytic %>%
+  group_by(csps, visit_year) %>%
+  summarise(
+    n=n()
+  ) %>%
+  ungroup() %>%
+  group_by(visit_year) %>%
+  summarise(
+    visit_median = median(n, na.rm=T),
+    visit_IQR    = IQR(n, na.rm=T)
+  )
 
 ```
 
@@ -173,48 +162,21 @@ IQR(df_dia$n_visit_per_1000, na.rm=T)
 ```{r}
 
 # Covariate, rainfall per month (cm)
-summary(df_all$r1h)
-median(df_all$r1h, na.rm=T)
-IQR(df_all$r1h, na.rm=T)
-
-# Offset, population size per CSPS
-summary(df_all$offset_n)
-median(df_all$offset_n, na.rm=T)
-IQR(df_all$offset_n, na.rm=T)
-
-```
-
-
-
-
-
-
-
-
-
-
-
-### [OLD] Create summary statistics table.
-```{r}
-
-df_visits %>%
-  group_by(visit_year) %>%
-  summarise(n_visits=sum(n_visit),
-            pr_visits=sum(n_visit)*100/188570,
-            n_visits_per_1000=sum(n_visit_per_1000)
-            )
-
-```
-
-```{r}
-hist(df_2$enteredageinmonths[df_2$enteredageinmonths>=0])
-quantile(df_2$enteredageinmonths[df_2$enteredageinmonths>=0], na.rm=T)
-```
-
-```{r}
+hist(df_all$r1h)
 
 df_all %>%
-  group_by(visit_year, visit_month, any_violence) %>%
-  summarise(n=n())
+  summarise(
+    median = median(r1h, na.rm=T),
+    IQR = IQR(r1h, na.rm=T)
+  )
+
+# Offset, population size per CSPS
+df_all %>%
+  summarise(
+    median = median(offset_n, na.rm=T),
+    IQR = IQR(offset_n, na.rm=T)
+  )
+
 ```
+
 
