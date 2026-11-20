@@ -52,6 +52,7 @@ library(splines)
 library(tableone)
 library(terra)
 library(tidyverse)
+library(viridis)
 # library(tmap)    # for static and interactive maps
 
 # define data paths
