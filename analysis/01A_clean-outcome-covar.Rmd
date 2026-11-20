@@ -402,7 +402,7 @@ pne_01A_mutated2 <-
   ))
 
 dia_01A_mutated2 <-
-  all_01A_merged3 %>%
+  dia_01A_merged3 %>%
   mutate(ramadan = as.integer(
     (visit_year == 2020 & visit_month %in% c(4, 5)) |
     (visit_year == 2021 & visit_month %in% c(4, 5)) |
